@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Address } from 'viem'
-import { cronos, cronosTestnet } from '@reown/appkit/networks'
+import { somniaTestnet } from '@/config/somnia-chain'
 import { getKnownContract, type KnownContract } from '@/lib/contracts'
 
 /**
@@ -21,8 +21,7 @@ export interface UseKnownContractMetadataReturn {
  * Get chain configuration by ID
  */
 function getChainConfig(chainId: number) {
-  if (chainId === cronos.id) return cronos
-  if (chainId === cronosTestnet.id) return cronosTestnet
+  if (chainId === somniaTestnet.id) return somniaTestnet
   return null
 }
 
@@ -44,7 +43,7 @@ function shortenAddress(address: string): string {
  * ```tsx
  * const { contract, displayName, explorerUrl } = useKnownContractMetadata(
  *   '0x1234...',
- *   25
+ *   50312
  * )
  * ```
  */
@@ -68,7 +67,8 @@ export function useKnownContractMetadata(
 
     // Get chain config for explorer URL
     const chain = getChainConfig(chainId)
-    const baseExplorerUrl = chain?.blockExplorers?.default.url ?? 'https://cronoscan.com'
+    const baseExplorerUrl =
+      chain?.blockExplorers?.default.url ?? 'https://shannon-explorer.somnia.network'
     const explorerUrl = `${baseExplorerUrl}/address/${address}`
 
     // Determine display name

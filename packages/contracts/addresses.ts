@@ -10,10 +10,8 @@ import type { Address } from 'viem'
  * AgentDelegator contract addresses by chain ID
  */
 export const AGENT_DELEGATOR_ADDRESS: Record<number, Address> = {
-  // Cronos Testnet (chain 338)
-  338: '0xA8734aA1db20bdc08fCf4E7C8657BF37f3c2e0b3',
-  // Cronos Mainnet (chain 25) - not yet deployed
-  25: '0x42592635fF346142c47351787134C9B1a21e71EC',
+  // Somnia Shannon testnet — deploy and set
+  50312: '0x399A377CAAE39Ef521782197C3A4c7159a7274cC',
 } as const
 
 /**

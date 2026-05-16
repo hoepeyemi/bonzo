@@ -6,7 +6,7 @@ const footerLinks = [
   { label: 'GitHub', href: 'https://github.com/nschwermann/agent_fabric' },
   { label: 'Docs', href: 'https://github.com/nschwermann/agent_fabric' },
   { label: 'Demo', href: '/explore' },
-  { label: 'Hackathon Submission', href: 'https://dorahacks.io/hackathon/cronos-x402/buidl' },
+  { label: 'Hackathon Submission', href: 'https://dorahacks.io/buidl/38376' },
 ]
 
 export function Footer() {
@@ -41,7 +41,7 @@ export function Footer() {
 
           {/* Descriptor */}
           <p className="text-sm text-muted-foreground max-w-md">
-            AgentFabric — an agent-native x402 execution fabric for Cronos.
+            AgentFabric — an agent-native x402 execution fabric for Somnia.
           </p>
         </div>
       </div>

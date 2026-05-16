@@ -21,7 +21,7 @@ The MCP server shares environment variables with the web app. Required variables
 | `NEXT_APP_URL` | URL of the web app (default: `http://localhost:3000`) |
 | `MCP_PUBLIC_URL` | Public URL where this MCP server is accessible (e.g., `https://mcp.yourdomain.com`) - used in OAuth metadata and WWW-Authenticate headers |
 | `PORT` | Server port (default: `3001`) |
-| `CHAIN_ID` | Cronos chain ID - `338` testnet, `25` mainnet |
+| `CHAIN_ID` | Somnia Shannon testnet chain ID — `50312` |
 | `SERVER_PRIVATE_KEY` | RSA private key for decrypting session keys |
 | `MCP_CLIENT_SECRET` | OAuth client secret for the MCP platform client |
 

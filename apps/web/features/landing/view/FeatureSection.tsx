@@ -45,7 +45,7 @@ const features = [
   {
     icon: Wallet,
     title: 'Gasless USDC Payments',
-    description: 'Pay with USDC on Cronos. Facilitator handles gas fees using EIP-3009 transferWithAuthorization.',
+    description: 'Pay with USDC on Somnia. Facilitator can relay gas using EIP-3009 transferWithAuthorization.',
     badge: 'User Experience',
   },
 ]

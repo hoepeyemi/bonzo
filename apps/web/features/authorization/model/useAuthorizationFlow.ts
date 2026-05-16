@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useConnection } from 'wagmi'
-import { cronosTestnet } from '@reown/appkit/networks'
+import { somniaTestnet } from '@/config/somnia-chain'
 import type { UseAuthorizationReturn } from './useAuthorization'
 
 /**
@@ -24,7 +24,7 @@ export interface AuthorizationFlowParams {
 export interface UseAuthorizationFlowReturn {
   /** Current step in the authorization flow */
   step: AuthorizationStep
-  /** Effective chain ID (from connection or default to Cronos Testnet) */
+  /** Effective chain ID (from connection or default to Somnia testnet) */
   effectiveChainId: number
   /** Whether the flow is ready for user interaction */
   isReady: boolean
@@ -49,8 +49,8 @@ export function useAuthorizationFlow(
   const { authorization } = params
   const { chainId } = useConnection()
 
-  // Use connected chain or default to Cronos Testnet
-  const effectiveChainId = chainId ?? cronosTestnet.id
+  // Use connected chain or default to Somnia testnet
+  const effectiveChainId = chainId ?? somniaTestnet.id
 
   // Determine current step based on authorization state
   const step: AuthorizationStep = useMemo(() => {

@@ -45,7 +45,7 @@ export function loadConfig(): Config {
     serverPrivateKey: getEnvOrThrow('SERVER_PRIVATE_KEY'),
     mcpClientSecret: getEnvOrThrow('MCP_CLIENT_SECRET'),
     mcpClientId: getEnvOrDefault('MCP_CLIENT_ID', 'x402-mcp-platform'),
-    chainId: parseInt(getEnvOrDefault('CHAIN_ID', '338'), 10),
+    chainId: parseInt(getEnvOrDefault('CHAIN_ID', '50312'), 10),
   }
 }
 

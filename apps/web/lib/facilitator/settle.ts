@@ -10,7 +10,7 @@ import {
   type Account,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { cronos, cronosTestnet } from 'viem/chains'
+import { somniaTestnet } from '@/config/somnia-chain'
 import type {
   PaymentHeader,
   PaymentRequirements,
@@ -46,8 +46,7 @@ const USDC_EIP3009_ABI = [
 ] as const
 
 /**
- * Calculate the Ethermint/Cronos floor gas based on calldata size.
- * Ethermint enforces a minimum gas based on transaction data (EIP-2028):
+ * Floor gas estimate from calldata size (EIP-2028-style per-byte cost).
  * - 4 gas per zero byte
  * - 16 gas per non-zero byte
  * - Plus 21000 base transaction gas
@@ -69,13 +68,12 @@ function calculateFloorGas(calldata: Hex): bigint {
  * Get the viem chain object for a chain ID
  */
 function getViemChain(chainId: number) {
-  if (chainId === 25) return cronos
-  if (chainId === 338) return cronosTestnet
+  if (chainId === 50312) return somniaTestnet
   throw new Error(`Unsupported chain: ${chainId}`)
 }
 
 /**
- * Forward settlement to the official Cronos facilitator
+ * Forward settlement to the configured x402 facilitator
  */
 async function settleWithOfficialFacilitator(
   facilitatorUrl: string,
@@ -140,7 +138,7 @@ async function settleSmartAccountPayment(
   publicClient: PublicClient,
   header: PaymentHeader,
   feeConfig: FeeConfig,
-  chain: typeof cronos | typeof cronosTestnet,
+  chain: typeof somniaTestnet,
   account: Account
 ): Promise<SettleResult> {
   const payload = header.payload
@@ -239,7 +237,7 @@ async function settleSmartAccountPayment(
 /**
  * Settle a payment
  *
- * - For EOA signatures: Forward to official Cronos facilitator
+ * - For EOA signatures: Forward to NEXT_PUBLIC_X402_FACILITATOR_URL when set
  * - For smart account signatures: Execute transferWithAuthorization directly
  *
  * Should only be called AFTER target API returns success

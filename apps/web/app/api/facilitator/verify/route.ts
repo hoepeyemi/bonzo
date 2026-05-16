@@ -11,7 +11,7 @@ import {
  * POST /api/facilitator/verify
  *
  * Verify an x402 payment signature.
- * - For EOA signatures: Forwards to official Cronos facilitator
+ * - For EOA signatures: Forwards to the configured x402 facilitator when a base URL is set
  * - For smart account signatures: Verifies via EIP-1271 isValidSignature()
  *
  * Request body:
@@ -20,7 +20,7 @@ import {
  *   paymentHeader: string (base64),
  *   paymentRequirements: {
  *     scheme: 'exact',
- *     network: 'cronos-mainnet' | 'cronos-testnet',
+ *     network: string (e.g. 'somnia-testnet')
  *     payTo: Address,
  *     asset: Address,
  *     maxAmountRequired: string,

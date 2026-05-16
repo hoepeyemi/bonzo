@@ -2,7 +2,7 @@
 
 **Agents with limits.**
 
-AgentFabric is an agent-native x402 execution fabric that enables AI agents to safely interact with paid APIs and on-chain workflows on Cronos EVM, using scoped, programmable permissions.
+AgentFabric is an agent-native x402 execution fabric that enables AI agents to safely interact with paid APIs and on-chain workflows on Somnia (Shannon testnet and compatible EVM networks), using scoped, programmable permissions.
 
 Agents never access a user's primary private key.
 Instead, they operate via session keys with explicit, enforceable limits — such as which protocol, which asset, and how much value they are allowed to use.
@@ -49,7 +49,7 @@ flowchart LR
     A2["AI Agent"] --> S2["Scoped Session Key\n(least privilege)"]
     S2 --> F2["AgentFabric\nPermission Enforcement"]:::good
     F2 --> API2["x402 APIs\nPaid, usage-based"]
-    F2 --> C2["Cronos EVM\nSmart Account + Protocols"]
+    F2 --> C2["EVM (e.g. Somnia)\nSmart Account + Protocols"]
     P2["Allowed protocol\nAllowed asset\nMax value\nAllowed methods"]:::good
   end
 
@@ -91,15 +91,15 @@ This follows the principle of least privilege.
 flowchart TB
   OWNER["Primary Key (Owner)\nNever shared with agent"]:::owner
 
-  SA["Smart Account (Cronos EVM)\nPermission Engine + Enforcement"]:::good
+  SA["Smart Account (EVM)\nPermission engine + enforcement"]:::good
   OWNER --> SA
 
-  SK["Session Key (Delegated)\n- Valid until: timeboxed\n- Allowed protocol: WolfSwap\n- Allowed methods: swap()\n- Max spend: 5 CRO\n- Optional: allowed assets"]:::good
+  SK["Session Key (Delegated)\n- Valid until: timeboxed\n- Allowed protocol: example DEX\n- Allowed methods: swap()\n- Max spend: capped\n- Optional: allowed assets"]:::good
 
   AG["AI Agent"] --> SK
   SK --> SA
 
-  SA --> CHAIN["Cronos EVM\nDEX / Protocol Contracts"]:::chain
+  SA --> CHAIN["Target chain\nDEX / protocol contracts"]:::chain
 
   classDef owner fill:#1f2430,stroke:#93c5fd,stroke-width:2px,color:#ffffff;
   classDef good fill:#152a20,stroke:#4ade80,stroke-width:2px,color:#ffffff;
@@ -134,7 +134,7 @@ flowchart LR
 
   subgraph WF["Workflow Fabric"]
     A["x402 API Call(s)"] --> W["Composable Workflow\nReusable + Permissionable\nAgent-readable"]:::good
-    B["On-chain Action(s)\n(Cronos EVM)"] --> W
+    B["On-chain action(s)\n(EVM)"] --> W
     C["Optional: Conditional Logic\n(routing / checks)"] --> W
   end
 
@@ -164,7 +164,7 @@ Selected APIs and workflows are exposed as MCP servers, enabling:
 3. A scoped session key is generated for an agent
 4. APIs and workflows are exposed via an MCP server
 5. The agent discovers, reasons, and executes within strict boundaries
-6. Transactions settle on Cronos using x402-compatible flows
+6. Transactions settle on-chain using x402-compatible flows
 
 **Result:** autonomous execution without autonomous risk.
 
@@ -173,7 +173,7 @@ flowchart LR
   AG["AI Agent\n(ChatGPT / Claude / Custom Agent)"] --> MCP["MCP Server\nAgent-facing execution surface\nDiscoverable capabilities"]
   MCP --> AF["AgentFabric\nx402 Execution Fabric\nAPI Proxies + Workflow Engine\nPermission Enforcement"]:::good
   AF --> X402["x402 APIs\nPaid, usage-based settlement"]
-  AF --> CR["Cronos EVM\nSmart Account + DeFi Protocols"]:::good
+  AF --> CR["EVM\nSmart account + DeFi protocols"]:::good
 
   SK["Scoped Session Key\nAllowed protocol / asset / methods\nMax value + expiry"]:::good
   AG -. uses .-> SK
@@ -188,30 +188,29 @@ flowchart LR
 
 In the demo, AgentFabric shows an AI agent performing the following task:
 
-> "Find the top trending token on Cronos today and buy 5 CRO worth of it."
+> "Find the top trending token on Somnia testnet today and swap a small amount of STT into it."
 
 Using AgentFabric, the agent:
 
 1. Queries a paid x402 API for trending tokens
 2. Selects the top result
-3. Executes a swap via a prebuilt WolfSwap DEX aggregation workflow
-4. Settles the transaction on Cronos EVM
+3. Executes a swap via a prebuilt DEX aggregation workflow
+4. Settles the transaction on Shannon testnet
 
 At no point does the agent access the user's private key.
 All actions are executed within scoped permissions.
 
 ---
 
-## Built for Cronos & x402
+## Built for x402 & EVM
 
 AgentFabric is:
 
-- deployed on Cronos EVM
+- deployed on EVM-compatible networks (default dev target: Somnia Shannon testnet)
 - designed for x402-style programmatic payments
-- compatible with Crypto.com ecosystem tooling
 - aligned with agentic finance and AI-native infrastructure
 
-This makes Cronos a safe, first-class execution environment for AI agents.
+This makes the target chain a safe, first-class execution environment for AI agents.
 
 ---
 
@@ -232,7 +231,7 @@ AgentFabric qualifies for:
 
 - Main Track — x402 Applications
 - x402 Agentic Finance / Payment Track
-- Crypto.com x Cronos Ecosystem Integration
+- Ecosystem integration tracks (per event rules)
 - Dev Tooling & Data Virtualization Track
 
 ---

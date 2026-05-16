@@ -17,9 +17,9 @@ export interface UserState {
   isLoading: boolean
   isBalanceLoading: boolean
   error: string | null
-  /** Wallet connected but not on a supported Cronos network */
+  /** Wallet connected but not on a supported Somnia network */
   isWrongNetwork: boolean
-  /** Chain the app expects (from NEXT_PUBLIC_CRONOS_CHAIN_ID) */
+  /** Chain the app expects (from `NEXT_PUBLIC_CHAIN_ID`, default Somnia testnet) */
   appChainId: number
 }
 

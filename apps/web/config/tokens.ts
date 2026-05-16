@@ -1,5 +1,6 @@
 import type { Address } from 'viem'
-import { cronos, cronosTestnet } from '@reown/appkit/networks'
+import { USDC_E_CONFIG } from '@x402/payment'
+import { somniaTestnet } from '@/config/somnia-chain'
 
 export interface TokenConfig {
   address: Address
@@ -15,28 +16,24 @@ export interface ChainTokens {
   }
 }
 
+function usdceAddressForChain(chainId: number): Address {
+  const base = USDC_E_CONFIG[chainId as keyof typeof USDC_E_CONFIG]?.address
+  if (chainId === somniaTestnet.id) {
+    const fromEnv = process.env.NEXT_PUBLIC_USDCE_ADDRESS as Address | undefined
+    if (fromEnv) return fromEnv
+  }
+  return base as Address
+}
+
 export const tokens: Record<number, ChainTokens> = {
-  // Cronos Mainnet
-  [cronos.id]: {
+  [somniaTestnet.id]: {
     usdce: {
-      address: '0xf951eC28187D9E5Ca673Da8FE6757E6f0Be5F77C',
-      symbol: 'USDC.E',
-      decimals: 6,
+      address: usdceAddressForChain(somniaTestnet.id),
+      symbol: USDC_E_CONFIG[50312].symbol,
+      decimals: USDC_E_CONFIG[50312].decimals,
     },
     native: {
-      symbol: 'CRO',
-      decimals: 18,
-    },
-  },
-  // Cronos Testnet
-  [cronosTestnet.id]: {
-    usdce: {
-      address: '0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0',
-      symbol: 'USDC.E',
-      decimals: 6,
-    },
-    native: {
-      symbol: 'TCRO',
+      symbol: 'STT',
       decimals: 18,
     },
   },
@@ -66,12 +63,11 @@ export function getNativeConfig(chainId: number): ChainTokens['native'] {
   return getTokens(chainId).native
 }
 
-// Default chain for the app
-export const defaultChainId = cronos.id
+export const defaultChainId = somniaTestnet.id
 
-/** App target chain from env (338 testnet or 25 mainnet). */
+/** App target chain from env (defaults to Somnia Shannon testnet). */
 export function getAppChainId(): number {
-  const fromEnv = parseInt(process.env.NEXT_PUBLIC_CRONOS_CHAIN_ID ?? '', 10)
+  const fromEnv = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID ?? '', 10)
   if (!Number.isNaN(fromEnv) && isChainSupported(fromEnv)) {
     return fromEnv
   }

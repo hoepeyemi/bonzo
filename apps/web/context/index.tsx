@@ -13,16 +13,15 @@ import {
   type SIWXStorage,
 } from '@reown/appkit-siwx'
 
-
-import { cronos, cronosTestnet, mainnet, sepolia } from '@reown/appkit/networks'
+import { mainnet, sepolia } from '@reown/appkit/networks'
 import { projectId, wagmiAdapter } from '@/config'
-import { getAppChainId } from '@/config/tokens'
+import { somniaTestnet } from '@/config/somnia-chain'
 import { UserProvider } from './user'
 
 // App metadata
 const metadata = {
   name: 'Route 402',
-  description: 'Decentralized API marketplace with x402 payments on Cronos',
+  description: 'Decentralized API marketplace with x402 payments on Somnia',
   url: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
   icons: ['/icon.png'],
 }
@@ -139,11 +138,7 @@ const siwx = new DefaultSIWX({
   storage: new ServerSyncStorage(),
 })
 
-/** Chains AppKit knows about (SIWX EIP-155 verifier needs the signing chain in this list). */
-const appKitNetworks = [cronos, cronosTestnet, mainnet, sepolia] as const
-
-const defaultNetwork =
-  getAppChainId() === cronosTestnet.id ? cronosTestnet : cronos
+const appKitNetworks = [somniaTestnet, mainnet, sepolia] as const
 
 // Initialize AppKit
 if (projectId) {
@@ -151,7 +146,7 @@ if (projectId) {
     adapters: [wagmiAdapter],
     projectId,
     networks: [...appKitNetworks],
-    defaultNetwork,
+    defaultNetwork: somniaTestnet,
     metadata,
     siwx,
     features: {

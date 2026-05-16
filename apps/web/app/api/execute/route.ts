@@ -8,7 +8,7 @@ import {
   type Hex,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { cronos, cronosTestnet } from 'viem/chains'
+import { somniaTestnet } from '@/config/somnia-chain'
 import { agentDelegatorAbi } from '@x402/contracts'
 
 /**
@@ -79,14 +79,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Determine chain from body or default to mainnet
-    const chainId = bodyChainId || 25
+    // Determine chain from body or default to Somnia Shannon testnet
+    const chainId = bodyChainId ?? 50312
 
-    // Get chain config
-    const chain = chainId === 338 ? cronosTestnet : cronos
-    const rpcUrl = chainId === 338
-      ? 'https://evm-t3.cronos.org'
-      : 'https://evm.cronos.org'
+    if (chainId !== 50312) {
+      return NextResponse.json({ error: `Unsupported chain: ${chainId}` }, { status: 400 })
+    }
+
+    const chain = somniaTestnet
+    const rpcUrl = somniaTestnet.rpcUrls.default.http[0]
 
     console.log('[Execute] Using chain:', { chainId, rpcUrl })
 

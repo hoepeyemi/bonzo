@@ -27,7 +27,7 @@ const ERROR_MESSAGES: Record<ErrorType, { title: string; description: string }> 
   },
   invalid_address: {
     title: 'Invalid Address',
-    description: 'The recipient address is not a valid Ethereum/Cronos address. It should start with 0x followed by 40 hexadecimal characters.',
+    description: 'The recipient address is not a valid EVM address. It should start with 0x followed by 40 hexadecimal characters.',
   },
 }
 
@@ -69,7 +69,7 @@ export function PayErrorClient({ errorType, recipient, amount }: PayErrorClientP
           <code className="block text-sm font-mono break-all">{recipient}</code>
           {errorType === 'domain_not_found' && (
             <p className="text-xs text-muted-foreground mt-2">
-              Make sure the .cro domain is registered on Cronos ID and has a wallet address configured.
+              Make sure the .cro domain resolves to a wallet address (registry on chain 25).
             </p>
           )}
         </div>

@@ -71,7 +71,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Get USDC.E address for current chain (returns null for unsupported chains)
   const usdceAddress = chainId ? getUsdceConfigSafe(chainId)?.address : undefined
 
-  // Native balance (CRO)
+  // Native balance (STT)
   const {
     data: nativeBalanceData,
     isLoading: isNativeBalanceLoading,

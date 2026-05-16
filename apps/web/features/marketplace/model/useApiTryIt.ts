@@ -14,7 +14,7 @@ import {
 } from '@/lib/x402/client'
 
 /**
- * Payment requirements per Cronos x402 spec
+ * Payment requirements (x402)
  * Received in 402 response body
  */
 interface PaymentRequirements {
@@ -212,8 +212,8 @@ export function useApiTryIt({
   }, [sessionId])
 
   /**
-   * Sign EIP-3009 TransferWithAuthorization with wallet
-   * Per Cronos x402 spec: https://docs.cronos.org/cronos-x402-facilitator/quick-start-for-buyers
+   * Sign EIP-3009 TransferWithAuthorization with wallet (buyer flow per x402)
+   * @see https://github.com/coinbase/x402
    */
   const createWalletPaymentHeader = useCallback(async (
     requirements: PaymentRequirements,
@@ -306,7 +306,7 @@ export function useApiTryIt({
         return
       }
 
-      // Step 2: Extract payment requirements from 402 response body (per Cronos x402 spec)
+      // Step 2: Extract payment requirements from 402 response body
       const responseData = await initialResponse.json()
       const { paymentRequirements } = responseData
 

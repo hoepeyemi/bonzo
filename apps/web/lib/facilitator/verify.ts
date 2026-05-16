@@ -112,7 +112,7 @@ async function verifySmartAccountSignature(
 }
 
 /**
- * Forward verification to the official Cronos facilitator
+ * Forward verification to the configured x402 facilitator
  */
 async function verifyWithOfficialFacilitator(
   facilitatorUrl: string,
@@ -153,7 +153,7 @@ async function verifyWithOfficialFacilitator(
 /**
  * Verify a payment signature
  *
- * - For EOA signatures: Forward to official Cronos facilitator
+ * - For EOA signatures: Forward to the configured x402 facilitator
  * - For smart account signatures: Verify locally via EIP-1271
  */
 export async function verifyPayment(

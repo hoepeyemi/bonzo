@@ -7,7 +7,7 @@ import {
   http,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { cronosTestnet, cronos } from 'viem/chains'
+import { somniaTestnet } from '@/config/somnia-chain'
 
 export interface GenerateAndEnableWalletParams {
   chainId: number
@@ -58,8 +58,7 @@ export async function generateAndEnableWallet({
   GenerateAndEnableWalletResult | GenerateAndEnableWalletError
 > {
   // Determine chain config
-  const chain =
-    chainId === 338 ? cronosTestnet : chainId === 25 ? cronos : undefined
+  const chain = chainId === somniaTestnet.id ? somniaTestnet : undefined
 
   if (!chain) {
     return {
@@ -69,21 +68,7 @@ export async function generateAndEnableWallet({
     }
   }
 
-  // Get RPC URL for the chain
-  const rpcUrl =
-    chainId === 338
-      ? 'https://evm-t3.cronos.org'
-      : chainId === 25
-        ? 'https://evm.cronos.org'
-        : undefined
-
-  if (!rpcUrl) {
-    return {
-      success: false,
-      error: 'unknown',
-      message: `No RPC URL configured for chain ${chainId}`,
-    }
-  }
+  const rpcUrl = somniaTestnet.rpcUrls.default.http[0]
 
   try {
     // Step 1: Generate new private key and derive account

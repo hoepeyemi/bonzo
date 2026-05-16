@@ -19,8 +19,9 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     // ========================
     // ERC-7201 Namespaced Storage
     // ========================
+    // STORAGE_SLOT is fixed for deployed instances; do not change it or struct layout.
 
-    /// @custom:storage-location erc7201:cronos-hackathon.agent.delegator
+    /// @custom:storage-location erc7201:agentfabric.agent.delegator
     struct DelegatorStorage {
         uint256 sessionNonce;
         mapping(bytes32 => Session) sessions;
@@ -28,7 +29,7 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
         mapping(bytes32 => mapping(address => DomainInfo)) sessionContractDomains;
     }
 
-    // keccak256(toBytes("cronos-hackathon.agent.delegator")) - 1) & ~bytes32(uint256(0xff))
+    // Immutable namespaced slot (must match bytecode already on-chain for this contract).
     bytes32 private constant STORAGE_SLOT =
         0xa0c1d2d7f72a881653f7765d29f368af07d2f3cfc87dd25869b0087cfa6e7900;
 

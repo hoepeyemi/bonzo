@@ -107,7 +107,7 @@ export function WorkflowTargetsDisplay({ targets, isSelected, onToggle }: Workfl
                         {target.address}
                       </code>
                       <a
-                        href={`https://explorer.cronos.org/address/${target.address}`}
+                        href={`https://shannon-explorer.somnia.network/address/${target.address}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-muted-foreground hover:text-foreground"

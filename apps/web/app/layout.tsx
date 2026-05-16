@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AgentFabric",
-  description: "An agent-native x402 execution fabric for Cronos. Programmable permissions for AI agents to safely interact with paid APIs and on-chain workflows.",
+  description: "An agent-native x402 execution fabric for Somnia. Programmable permissions for AI agents to safely interact with paid APIs and on-chain workflows.",
 };
 
 export default async function RootLayout({

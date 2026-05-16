@@ -14,7 +14,7 @@ const steps = [
     number: '1',
     icon: Layers,
     title: 'Define Capabilities',
-    description: 'Create x402 API proxies and on-chain workflows on Cronos.',
+    description: 'Create x402 API proxies and on-chain workflows on Somnia.',
   },
   {
     number: '2',

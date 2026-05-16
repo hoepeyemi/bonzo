@@ -1,5 +1,5 @@
 import type { Address, Hex } from 'viem'
-import { cronos } from '@reown/appkit/networks'
+import { somniaTestnet } from '@/config/somnia-chain'
 import { getUsdceConfig } from '@/config/tokens'
 import { getKnownContract } from '@/lib/contracts'
 import type { EIP712Scope, ExecuteScope, SessionScope } from './types'
@@ -19,9 +19,8 @@ export const SELECTORS = {
   permit: '0xd505accf' as Hex,
 } as const
 
-// Default chain ID for the app (Cronos Mainnet)
-// Note: Callers should always pass chainId explicitly for correct behavior
-const DEFAULT_CHAIN_ID = cronos.id
+// Default chain — Somnia Shannon testnet
+const DEFAULT_CHAIN_ID = somniaTestnet.id
 
 /**
  * Scope template factory functions

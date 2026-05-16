@@ -9,30 +9,25 @@ import {
   isSupportedChain,
 } from '@x402/payment'
 
-/** Default chain ID (testnet) */
+/** Default chain ID (Somnia Shannon testnet) */
 export const defaultChainId = DEFAULT_CHAIN_ID
+
+function facilitatorUrlForChain(chainId: number): string | null {
+  if (chainId !== 50312) return null
+  const u = process.env.NEXT_PUBLIC_X402_FACILITATOR_URL?.trim()
+  return u || null
+}
 
 /**
  * Chain configurations for the facilitator
- *
- * Uses shared package constants with facilitator-specific extensions
  */
 export const chainConfigs: Record<number, ChainConfig> = {
-  // Cronos Mainnet
-  25: {
-    chainId: 25,
-    name: 'cronos-mainnet',
-    officialFacilitatorUrl: SHARED_CHAIN_CONFIGS[25].officialFacilitatorUrl,
-    usdcAddress: SHARED_CHAIN_CONFIGS[25].usdce.address,
-    rpcUrl: SHARED_CHAIN_CONFIGS[25].rpcUrl,
-  },
-  // Cronos Testnet
-  338: {
-    chainId: 338,
-    name: 'cronos-testnet',
-    officialFacilitatorUrl: SHARED_CHAIN_CONFIGS[338].officialFacilitatorUrl,
-    usdcAddress: SHARED_CHAIN_CONFIGS[338].usdce.address,
-    rpcUrl: SHARED_CHAIN_CONFIGS[338].rpcUrl,
+  50312: {
+    chainId: 50312,
+    name: 'somnia-testnet',
+    officialFacilitatorUrl: facilitatorUrlForChain(50312),
+    usdcAddress: SHARED_CHAIN_CONFIGS[50312].usdce.address,
+    rpcUrl: SHARED_CHAIN_CONFIGS[50312].rpcUrl,
   },
 }
 
@@ -45,7 +40,6 @@ export function getChainConfig(chainId: number): ChainConfig | null {
 
 /**
  * Parse network string to chain ID
- * Supports both "cronos-testnet" format and "eip155:338" format
  */
 export function parseChainId(network: string): number {
   return sharedParseChainId(network)
@@ -62,7 +56,7 @@ export function getNetworkFromChainId(chainId: number): string {
 }
 
 /**
- * Get USDC.E token address for a chain
+ * Get USDC token address for a chain
  */
 export function getUsdceAddress(chainId: number = defaultChainId): Address {
   return sharedGetUsdceAddress(chainId)

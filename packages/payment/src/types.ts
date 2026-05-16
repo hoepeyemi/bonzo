@@ -3,12 +3,12 @@ import type { Address, Hex } from 'viem'
 /**
  * Supported chain IDs for x402 payments
  */
-export type SupportedChainId = 25 | 338
+export type SupportedChainId = 50312
 
 /**
  * Network string identifiers
  */
-export type NetworkId = 'cronos-mainnet' | 'cronos-testnet'
+export type NetworkId = 'somnia-testnet'
 
 /**
  * Token configuration

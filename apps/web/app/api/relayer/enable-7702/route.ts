@@ -7,7 +7,8 @@ import {
   type Hex,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { cronos, cronosTestnet } from 'viem/chains'
+import { somniaTestnet } from '@/config/somnia-chain'
+import { getAppChainId } from '@/config/tokens'
 import { getAgentDelegatorAddress } from '@x402/contracts'
 import {
   verifyPayment,
@@ -38,7 +39,7 @@ const WALLET_GENERATION_COST = 500000
  *   - chainId: The chain ID
  *   - nonce: The authorization nonce
  *   - r, s, yParity: The signature components
- * - chainId: The chain ID (338 for testnet, 25 for mainnet)
+ * - chainId: The chain ID (50312 for Somnia Shannon testnet)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Check for x402 payment header
     const paymentHeaderValue = request.headers.get('X-PAYMENT')
-    const paymentChainId = parseInt(process.env.NEXT_PUBLIC_CRONOS_CHAIN_ID || '338', 10)
+    const paymentChainId = getAppChainId()
 
     // If no payment, return 402 Payment Required
     if (!paymentHeaderValue) {
@@ -135,10 +136,12 @@ export async function POST(request: NextRequest) {
       chainId: bodyChainId,
     })
 
-    // Determine chain from body or default to testnet for safety
-    const chainId = bodyChainId || 338
+    const chainId = bodyChainId ?? 50312
 
-    // Verify the authorization is for the correct AgentDelegator contract
+    if (chainId !== 50312) {
+      return NextResponse.json({ error: `Unsupported chain: ${chainId}` }, { status: 400 })
+    }
+
     const expectedContract = getAgentDelegatorAddress(chainId)
     if (
       authorization.address.toLowerCase() !== expectedContract.toLowerCase()
@@ -152,9 +155,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get chain config
-    const chain = chainId === 338 ? cronosTestnet : cronos
-    const rpcUrl =
-      chainId === 338 ? 'https://evm-t3.cronos.org' : 'https://evm.cronos.org'
+    const chain = somniaTestnet
+    const rpcUrl = somniaTestnet.rpcUrls.default.http[0]
 
     console.log('[Enable7702] Using chain:', { chainId, rpcUrl })
 

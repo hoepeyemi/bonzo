@@ -4,7 +4,7 @@ import { Wallet, LogOut, Copy, Check, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { useAppKit } from '@reown/appkit/react'
 import { useSwitchChain } from 'wagmi'
-import { cronos, cronosTestnet } from '@reown/appkit/networks'
+import { somniaTestnet } from '@/config/somnia-chain'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -44,7 +44,7 @@ function formatCompactNumber(value: string | number): string {
  * Compact user status component showing wallet info with dropdown menu.
  * Shows "Sign In" button when not authenticated.
  */
-const APP_CHAINS = [cronos, cronosTestnet] as const
+const APP_CHAINS = [somniaTestnet] as const
 
 export function UserStatus() {
   const { session, formattedBalance, isLoading, isWrongNetwork, appChainId, signOut } = useUser()
@@ -53,7 +53,7 @@ export function UserStatus() {
   const [copied, setCopied] = useState(false)
 
   const handleSwitchNetwork = () => {
-    const target = APP_CHAINS.find((c) => c.id === appChainId) ?? cronosTestnet
+    const target = APP_CHAINS.find((c) => c.id === appChainId) ?? somniaTestnet
     switchChain({ chainId: target.id })
   }
 
@@ -79,7 +79,7 @@ export function UserStatus() {
         className="gap-2"
       >
         <Wallet className="size-4" />
-        {isSwitchingChain ? 'Switching...' : 'Switch to Cronos'}
+        {isSwitchingChain ? 'Switching...' : 'Switch to Somnia Testnet'}
       </Button>
     )
   }

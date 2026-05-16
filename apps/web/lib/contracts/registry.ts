@@ -1,5 +1,9 @@
 import type { Address } from 'viem'
-import { cronos, cronosTestnet } from '@reown/appkit/networks'
+import { USDC_E_CONFIG } from '@x402/payment'
+import { getUsdceConfig } from '@/config/tokens'
+
+const SOMNIA_TESTNET_ID = 50312
+const usdcAddr = USDC_E_CONFIG[SOMNIA_TESTNET_ID].address.toLowerCase()
 
 /**
  * Known contract metadata for display in UI
@@ -33,55 +37,30 @@ export interface KnownContract {
   supportedTypes?: string[]
 }
 
+function baseUsdcMeta(): KnownContract {
+  return {
+    address: USDC_E_CONFIG[SOMNIA_TESTNET_ID].address,
+    chainId: SOMNIA_TESTNET_ID,
+    name: 'USDC',
+    description: 'USD Coin (verify EIP-3009 / domain on-chain for Somnia testnet)',
+    logoUrl: '/tokens/usdc.svg',
+    verified: true,
+    protocol: 'Somnia',
+    type: 'token',
+    eip712Domain: {
+      name: USDC_E_CONFIG[SOMNIA_TESTNET_ID].domainName,
+      version: USDC_E_CONFIG[SOMNIA_TESTNET_ID].domainVersion,
+    },
+    supportedTypes: ['TransferWithAuthorization', 'ReceiveWithAuthorization', 'Permit'],
+  }
+}
+
 /**
  * Registry of known contracts across chains
  * Key format: `${chainId}:${address.toLowerCase()}`
  */
 const knownContractsRegistry: Record<string, KnownContract> = {
-  // ============================================================================
-  // Cronos Testnet (338)
-  // ============================================================================
-
-  // USDC.e (Stargate bridged) - Testnet
-  [`${cronosTestnet.id}:0xc01efaaf7c5c61bebfaeb358e1161b537b8bc0e0`]: {
-    address: '0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0' as Address,
-    chainId: cronosTestnet.id,
-    name: 'USDC.e',
-    description: 'Bridged USDC via Stargate',
-    logoUrl: '/tokens/usdc.svg',
-    verified: true,
-    protocol: 'Stargate',
-    type: 'token',
-    eip712Domain: {
-      name: 'Bridged USDC (Stargate)',
-      version: '1',
-    },
-    supportedTypes: ['TransferWithAuthorization', 'ReceiveWithAuthorization', 'Permit'],
-  },
-
-  // ============================================================================
-  // Cronos Mainnet (25)
-  // ============================================================================
-
-  // USDC.e (Stargate bridged) - Mainnet
-  [`${cronos.id}:0xf951ec28187d9e5ca673da8fe6757e6f0be5f77c`]: {
-    address: '0xf951eC28187D9E5Ca673Da8FE6757E6f0Be5F77C' as Address,
-    chainId: cronos.id,
-    name: 'USDC.e',
-    description: 'Bridged USDC via Stargate',
-    logoUrl: '/tokens/usdc.svg',
-    verified: true,
-    protocol: 'Stargate',
-    type: 'token',
-    eip712Domain: {
-      name: 'Bridged USDC (Stargate)',
-      version: '2',
-    },
-    supportedTypes: ['TransferWithAuthorization', 'ReceiveWithAuthorization', 'Permit'],
-  },
-
-  // Native CRO wrapper (WCRO) - if needed in future
-  // Add more known contracts here as the platform grows
+  [`${SOMNIA_TESTNET_ID}:${usdcAddr}`]: baseUsdcMeta(),
 }
 
 /**
@@ -89,7 +68,19 @@ const knownContractsRegistry: Record<string, KnownContract> = {
  */
 export function getKnownContract(address: Address, chainId: number): KnownContract | null {
   const key = `${chainId}:${address.toLowerCase()}`
-  return knownContractsRegistry[key] ?? null
+  const hit = knownContractsRegistry[key]
+  if (hit) return hit
+  if (chainId === SOMNIA_TESTNET_ID) {
+    try {
+      const cfg = getUsdceConfig(chainId)
+      if (cfg.address.toLowerCase() === address.toLowerCase()) {
+        return { ...baseUsdcMeta(), address: cfg.address }
+      }
+    } catch {
+      /* unsupported chain */
+    }
+  }
+  return null
 }
 
 /**
@@ -104,21 +95,24 @@ export function isContractVerified(address: Address, chainId: number): boolean {
  * Get all known contracts for a chain
  */
 export function getKnownContractsForChain(chainId: number): KnownContract[] {
-  return Object.values(knownContractsRegistry).filter(c => c.chainId === chainId)
+  return Object.values(knownContractsRegistry).filter((c) => c.chainId === chainId)
 }
 
 /**
  * Get all verified contracts for a chain
  */
 export function getVerifiedContractsForChain(chainId: number): KnownContract[] {
-  return getKnownContractsForChain(chainId).filter(c => c.verified)
+  return getKnownContractsForChain(chainId).filter((c) => c.verified)
 }
 
 /**
  * Format contract display info
  * Returns name + address preview for unknown contracts
  */
-export function formatContractDisplay(address: Address, chainId: number): {
+export function formatContractDisplay(
+  address: Address,
+  chainId: number
+): {
   name: string
   description: string
   logoUrl?: string

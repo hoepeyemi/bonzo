@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useConnection } from 'wagmi'
-import { reverseLookupCroDomain, isValidAddress } from '@/lib/cronosid'
+import { reverseLookupCroDomain, isValidAddress } from '@/lib/dot-cro'
 import type { Address } from 'viem'
 
 export type GeneratorState = 'input' | 'generated'
@@ -142,7 +142,7 @@ export function usePayLinkGenerator(): UsePayLinkGeneratorReturn {
 
   const shareOnX = useCallback(() => {
     if (!paymentUrl) return
-    const text = `Pay me $${amount} via x402 - gas-free USDC.E payment on Cronos`
+    const text = `Pay me $${amount} via x402 - gas-free USDC payment on Somnia`
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(paymentUrl)}`
     window.open(twitterUrl, '_blank', 'noopener,noreferrer')
   }, [amount, paymentUrl])

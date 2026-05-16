@@ -124,7 +124,7 @@ export function PaymentForm({
           Send Payment
         </CardTitle>
         <CardDescription>
-          Pay {originalDomain || 'recipient'} with USDC.E on Cronos
+          Pay {originalDomain || 'recipient'} with USDC on Somnia
         </CardDescription>
       </CardHeader>
 

@@ -1,5 +1,5 @@
 import { payParamsSchema } from '@/lib/validations/pay'
-import { isCroDomain, isValidAddress } from '@/lib/cronosid'
+import { isCroDomain, isValidAddress } from '@/lib/dot-cro'
 
 /**
  * Payment parameters interface

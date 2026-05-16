@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import { resolveCroDomain, isCroDomain, isValidAddress } from '@/lib/cronosid'
+import { resolveCroDomain, isCroDomain, isValidAddress } from '@/lib/dot-cro'
 
 /**
  * Result of recipient resolution

@@ -97,13 +97,13 @@ async function handleProxyRequest(
       }
     }
 
-    // Extract payment header (X-PAYMENT per Cronos x402 spec)
+    // Extract payment header (X-PAYMENT per x402)
     const paymentHeaderValue = request.headers.get('X-PAYMENT')
 
 
-    // If no payment, return 402 Payment Required (per Cronos x402 spec)
+    // If no payment, return 402 Payment Required (per x402)
     if (!paymentHeaderValue) {
-      const chainId = parseInt(process.env.NEXT_PUBLIC_CRONOS_CHAIN_ID || '338', 10)
+      const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID ?? '50312', 10)
 
       const paymentRequirements = buildPaymentRequirements({
         amount: proxy.pricePerRequest,

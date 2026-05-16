@@ -1,5 +1,22 @@
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
-import { configVariable, defineConfig } from "hardhat/config";
+import { defineConfig } from "hardhat/config";
+
+const projectDir = dirname(fileURLToPath(import.meta.url));
+// Load `hardhat/.env` — deployment uses env vars only (no Hardhat keystore required).
+dotenv.config({ path: resolve(projectDir, ".env") });
+
+function deployerPrivateKeys(): string[] {
+  const raw = process.env.HACKATHON_KEY?.trim();
+  if (!raw) return [];
+  const key = raw.startsWith("0x") ? raw : `0x${raw}`;
+  return [key];
+}
+
+// Only needed for `ignition deploy --verify` / `verify` tasks; can be empty for deploy-only.
+const somniaExplorerApiKey = process.env.SOMNIA_EXPLORER_API_KEY?.trim() ?? "";
 
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
@@ -25,46 +42,26 @@ export default defineConfig({
   },
 
   networks: {
-    cronosTestnet: {
+    somniaTestnet: {
       type: "http",
       chainType: "l1",
-      url: "https://evm-t3.cronos.org",
-      chainId: 338,
-      accounts: [configVariable("HACKATHON_KEY")],
-    },
-    cronosMainnet: {
-      type: "http",
-      chainType: "l1",
-      url: "https://evm.cronos.org",
-      chainId: 25,
-      accounts: [configVariable("HACKATHON_KEY")],
+      url: "https://api.infra.testnet.somnia.network",
+      chainId: 50312,
+      accounts: deployerPrivateKeys(),
     },
   },
 
   chainDescriptors: {
-    25: {
-      name: "cronos",
+    50312: {
+      name: "somnia-testnet",
       hardforkHistory: {
         cancun: { blockNumber: 0 },
       },
       blockExplorers: {
         etherscan: {
-          name: "Cronoscan",
-          url: "https://explorer.cronos.org",
-          apiUrl: "https://explorer-api.cronos.org/mainnet/api/v1/hardhat/contract",
-        },
-      },
-    },
-    338: {
-      name: "cronos-testnet",
-      hardforkHistory: {
-        cancun: { blockNumber: 0 },
-      },
-      blockExplorers: {
-        etherscan: {
-          name: "Cronoscan Testnet",
-          url: "https://explorer.cronos.org/testnet",
-          apiUrl: "https://explorer-api.cronos.org/testnet/api/v1/hardhat/contract",
+          name: "Somnia Shannon Explorer",
+          url: "https://shannon-explorer.somnia.network",
+          apiUrl: "https://shannon-explorer.somnia.network/api", // adjust if using a different verify API
         },
       },
     },
@@ -72,12 +69,7 @@ export default defineConfig({
 
   verify: {
     etherscan: {
-      apiKey: configVariable(
-        // process.env.HARDHAT_NETWORK === "cronosMainnet"
-          // ? "CRONOS_EXPLORER"
-          // : "CRONOS_EXPLORER_TEST",
-          "CRONOS_EXPLORER"
-      ),
+      apiKey: somniaExplorerApiKey,
     },
   },
 });

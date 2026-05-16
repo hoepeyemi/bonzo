@@ -108,11 +108,17 @@ npx hardhat test
 
 ### Deployment
 
-Deploy using Hardhat Ignition:
+1. Copy `.env.example` to `.env` and set **`HACKATHON_KEY`** to your deployer private key (`0x` + 64 hex chars). Deployment does **not** use the Hardhat keystore.
+
+2. Deploy with Ignition:
 
 ```shell
-npx hardhat ignition deploy ignition/modules/AgentDelegator.ts --network <network>
+npx hardhat ignition deploy ignition/modules/AgentDelegator.ts --network somniaTestnet
 ```
+
+Optional: set **`SOMNIA_EXPLORER_API_KEY`** in `.env` if you use `ignition deploy --verify` or contract verification tasks.
+
+You can also export `HACKATHON_KEY` in the shell instead of using `.env`.
 
 ## Contract Architecture
 

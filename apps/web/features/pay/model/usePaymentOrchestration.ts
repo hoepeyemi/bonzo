@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
-import { cronos, cronosTestnet } from '@reown/appkit/networks'
+import { somniaTestnet } from '@/config/somnia-chain'
 import { useUser } from '@/context/user'
 import { defaultChainId } from '@/config/tokens'
 import { usePayment, useSessionPayment } from './index'
@@ -46,7 +46,7 @@ export interface UsePaymentOrchestrationReturn {
   isLoadingSessions: boolean
 
   // Chain info
-  chain: typeof cronos | typeof cronosTestnet
+  chain: typeof somniaTestnet
   explorerUrl: string
 
   // Processing state
@@ -105,8 +105,8 @@ export function usePaymentOrchestration(
   const isAuthenticated = session?.isAuthenticated ?? false
   const currentChainId = chainId || defaultChainId
   const isProcessing = payment.status === 'signing' || payment.status === 'submitting'
-  const chain = currentChainId === cronos.id ? cronos : cronosTestnet
-  const explorerUrl = chain.blockExplorers?.default.url ?? 'https://cronoscan.com'
+  const chain = somniaTestnet
+  const explorerUrl = chain.blockExplorers?.default.url ?? 'https://shannon-explorer.somnia.network'
   const paymentMethod: PaymentMethod = useSession && activeSession ? 'session' : 'manual'
 
   /**
