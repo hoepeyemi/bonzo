@@ -267,10 +267,7 @@ export async function settlePayment(
     amount: header.payload.value,
   })
 
-  let result: SettleResult
-
   if (signatureType === 'eoa' && chainConfig.officialFacilitatorUrl) {
-    // First verify with official facilitator
     const paymentRequirements: PaymentRequirements = {
       scheme: 'exact',
       network: chainConfig.name,
@@ -282,45 +279,49 @@ export async function settlePayment(
       mimeType: 'application/json',
     }
 
-    result = await settleWithOfficialFacilitator(
+    const facilitatorResult = await settleWithOfficialFacilitator(
       chainConfig.officialFacilitatorUrl,
       paymentHeaderBase64,
       paymentRequirements
     )
-  } else {
-    // Settle smart account payment directly
-    const relayerKey = process.env.FACILITATOR_RELAYER_KEY
 
-    if (!relayerKey) {
-      console.error('[Facilitator] FACILITATOR_RELAYER_KEY not configured')
-      return null
+    if (facilitatorResult.success && facilitatorResult.txHash) {
+      console.log('[Facilitator] Payment settled via facilitator! TxHash:', facilitatorResult.txHash)
+      return { txHash: facilitatorResult.txHash }
     }
-
-    const chain = getViemChain(chainId)
-    const account = privateKeyToAccount(relayerKey as Hex)
-
-    const publicClient = createPublicClient({
-      chain,
-      transport: http(chainConfig.rpcUrl),
-    })
-
-    const walletClient = createWalletClient({
-      account,
-      chain,
-      transport: http(chainConfig.rpcUrl),
-    })
-
-    const feeConfig = getDefaultFeeConfig()
-
-    result = await settleSmartAccountPayment(
-      walletClient,
-      publicClient,
-      header,
-      feeConfig,
-      chain,
-      account
-    )
   }
+
+  // On-chain EIP-3009 settlement (EOA and smart-account signatures; relayer pays gas)
+  const relayerKey = process.env.FACILITATOR_RELAYER_KEY
+  if (!relayerKey) {
+    console.error('[Facilitator] FACILITATOR_RELAYER_KEY not configured')
+    return null
+  }
+
+  const chain = getViemChain(chainId)
+  const account = privateKeyToAccount(relayerKey as Hex)
+
+  const publicClient = createPublicClient({
+    chain,
+    transport: http(chainConfig.rpcUrl),
+  })
+
+  const walletClient = createWalletClient({
+    account,
+    chain,
+    transport: http(chainConfig.rpcUrl),
+  })
+
+  const feeConfig = getDefaultFeeConfig()
+
+  const result = await settleSmartAccountPayment(
+    walletClient,
+    publicClient,
+    header,
+    feeConfig,
+    chain,
+    account
+  )
 
   if (!result.success || !result.txHash) {
     console.error('[Facilitator] Settlement failed:', result.error)

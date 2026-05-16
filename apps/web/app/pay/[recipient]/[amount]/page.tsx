@@ -48,15 +48,15 @@ export default async function PayPage({ params }: PageProps) {
 
   // Parse and validate amount
   const amountValidation = validateAmount(decodedAmount)
-  const amountUsd = parseFloat(decodedAmount)
-  const amountSmallestUnit = amountValidation.amountInSmallestUnit ?? Math.round(amountUsd * 1_000_000)
+  const amountStt = parseFloat(decodedAmount)
+  const amountSmallestUnit = amountValidation.amountInSmallestUnit ?? Math.round(amountStt * 1_000_000)
 
   return (
     <PayPageWrapper>
       <PaymentForm
         recipient={resolved.address}
         displayName={resolved.displayName}
-        amountUsd={amountUsd}
+        amountStt={amountStt}
         amountSmallestUnit={amountSmallestUnit}
         originalDomain={resolved.domainName}
       />

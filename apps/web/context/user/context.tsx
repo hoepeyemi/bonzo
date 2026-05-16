@@ -68,7 +68,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [checkServerSession])
 
-  // Get USDC.E address for current chain (returns null for unsupported chains)
+  // Somnia testnet STT (EIP-3009) token address for current chain
   const usdceAddress = chainId ? getUsdceConfigSafe(chainId)?.address : undefined
 
   // Native balance (STT)
@@ -81,7 +81,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     query: { enabled: !!address },
   })
 
-  // USDC.E balance using ERC20 balanceOf
+  // STT (x402 payment token) balance via ERC20 balanceOf
   const {
     data: usdceBalanceData,
     isLoading: isUsdceBalanceLoading,

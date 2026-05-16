@@ -15,8 +15,8 @@ interface PaymentFormProps {
   recipient: Address
   /** Display name (truncated address or .cro domain) */
   displayName: string
-  /** Initial amount in USD */
-  amountUsd: number
+  /** Initial amount in STT */
+  amountStt: number
   /** Initial amount in smallest unit */
   amountSmallestUnit: number
   /** Original .cro domain if recipient was resolved from one */
@@ -26,7 +26,7 @@ interface PaymentFormProps {
 export function PaymentForm({
   recipient,
   displayName,
-  amountUsd,
+  amountStt,
   amountSmallestUnit: initialAmountSmallestUnit,
   originalDomain,
 }: PaymentFormProps) {
@@ -50,7 +50,7 @@ export function PaymentForm({
     isAuthenticated,
   } = usePaymentOrchestration({
     recipient,
-    initialAmountUsd: amountUsd,
+    initialAmountStt: amountStt,
     initialAmountSmallestUnit,
   })
 
@@ -124,7 +124,7 @@ export function PaymentForm({
           Send Payment
         </CardTitle>
         <CardDescription>
-          Pay {originalDomain || 'recipient'} with USDC on Somnia
+          Pay {originalDomain || 'recipient'} with STT on Somnia testnet
         </CardDescription>
       </CardHeader>
 
@@ -149,9 +149,9 @@ export function PaymentForm({
 
         {/* Amount Input */}
         <div className="space-y-2">
-          <Label htmlFor="amount">Amount (USD)</Label>
+          <Label htmlFor="amount">Amount (STT)</Label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">STT</span>
             <Input
               id="amount"
               type="number"
@@ -160,13 +160,13 @@ export function PaymentForm({
               max="1000000"
               value={payment.amount}
               onChange={(e) => payment.setAmount(e.target.value)}
-              className="pl-7"
+              className="pl-12"
               disabled={isProcessing}
             />
           </div>
           {!payment.isValidAmount && payment.amount && (
             <p className="text-xs text-destructive">
-              Invalid amount. Must be between $0.01 and $1,000,000.
+              Invalid amount. Must be between 0.01 and 1,000,000 STT.
             </p>
           )}
         </div>

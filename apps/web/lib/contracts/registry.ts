@@ -41,8 +41,8 @@ function baseUsdcMeta(): KnownContract {
   return {
     address: USDC_E_CONFIG[SOMNIA_TESTNET_ID].address,
     chainId: SOMNIA_TESTNET_ID,
-    name: 'USDC',
-    description: 'USD Coin (verify EIP-3009 / domain on-chain for Somnia testnet)',
+    name: 'STT',
+    description: 'Somnia testnet payment token (EIP-3009)',
     logoUrl: '/tokens/usdc.svg',
     verified: true,
     protocol: 'Somnia',

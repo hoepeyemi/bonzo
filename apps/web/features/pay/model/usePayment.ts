@@ -21,7 +21,7 @@ import type { PaymentParams, PaymentStatus, UsePaymentReturn } from './types'
  * and settlement via the facilitator API.
  */
 export function usePayment(params: PaymentParams): UsePaymentReturn {
-  const { recipient, initialAmountUsd } = params
+  const { recipient, initialAmountStt } = params
 
   const { session } = useUser()
   const { address, chainId } = useConnection()
@@ -31,7 +31,7 @@ export function usePayment(params: PaymentParams): UsePaymentReturn {
   const [status, setStatus] = useState<PaymentStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
-  const [amount, setAmount] = useState(initialAmountUsd.toString())
+  const [amount, setAmount] = useState(initialAmountStt.toString())
 
   // Derived values
   const currentChainId = chainId || defaultChainId
@@ -57,7 +57,7 @@ export function usePayment(params: PaymentParams): UsePaymentReturn {
     setTxHash(null)
 
     try {
-      // Build EIP-712 domain for USDC.E
+      // Build EIP-712 domain for Somnia testnet STT (EIP-3009)
       const domain = buildUsdceDomain(usdceConfig.address, currentChainId)
 
       // Build EIP-3009 message

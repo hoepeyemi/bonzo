@@ -1,3 +1,41 @@
+# Hardhat — AgentDelegator & Somnia Agents
+
+## Somnia Agents integration
+
+AgentFabric can invoke [Somnia Agents](https://metaversal.gitbook.io/agents/s8KLL5NzoS6LwJVIQCiT/invoking-agents/quickstart) from Solidity for async off-chain data (JSON API, oracles, etc.).
+
+| Contract | Role |
+| --- | --- |
+| `SomniaAgents` platform | `0x037Bb9C718F3f7fe5eCBDB0b600D607b52706776` (testnet) |
+| `AgentFabricSomniaBridge` | Deploy per network; wraps `createRequest` + callbacks |
+| `SomniaAgentConsumer` | Base consumer (JSON API helper + generic `requestAgent`) |
+
+**Deploy bridge (testnet):**
+
+```bash
+# Pick agent ID from https://agents.testnet.somnia.network → method → Solidity tab
+JSON_API_AGENT_ID=<agent-id> npx hardhat run scripts/deploy-somnia-agent-bridge.ts --network somniaTestnet
+```
+
+Add `NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS` and `NEXT_PUBLIC_JSON_API_AGENT_ID` to `apps/web/.env.local`.
+
+Session keys can allowlist the bridge address in `allowedTargets` to call `requestLabeledFetch` from workflows.
+
+**AgentDelegator integration** (separate ERC-7201 storage slot — requires redeployed `AgentDelegator` bytecode):
+
+- `setSomniaAgentBridge(address)` — owner self-call
+- `grantSessionWithSomniaBridge(...)` — auto-appends bridge to `allowedTargets`
+- `invokeSomniaLabeledFetch(...)` — forward through configured bridge
+
+```bash
+SOMNIA_AGENT_BRIDGE=0xcaa3228c7c8f82581228cba5867f4a84ae0f5a80 \
+npx hardhat run scripts/configure-delegator-somnia-bridge.ts --network somniaTestnet
+```
+
+**Typed agent callbacks:** `requestAgent(agentId, payload, responseHandler, executionRewardPerAgent)` where `responseHandler` is `handleUintResponse`, `handleStringResponse`, or `handleBytesResponse`. Deposits use `getRequestDeposit()` + configurable per-agent rewards (not a hardcoded 0.03 ether at runtime).
+
+---
+
 # AgentDelegator Contract
 
 A smart account contract implementing ERC-7702 delegation with session key support. The AgentDelegator enables EOA wallets to delegate limited permissions to session keys (agents) for specific operations without exposing the owner's private key.

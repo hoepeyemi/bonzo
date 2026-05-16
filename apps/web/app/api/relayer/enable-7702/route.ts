@@ -18,7 +18,7 @@ import {
 } from '@/lib/facilitator'
 import { paymentNonceRepository } from '@/lib/repositories'
 
-// Cost to generate a wallet: $0.50 in USDC (6 decimals)
+// Cost to generate a wallet: 0.5 STT (6 decimals)
 const WALLET_GENERATION_COST = 500000
 
 /**
@@ -27,7 +27,7 @@ const WALLET_GENERATION_COST = 500000
  * This endpoint allows clients to enable EIP-7702 smart account delegation
  * without needing a wallet that supports authorizationList transactions.
  *
- * REQUIRES x402 PAYMENT: $0.50 to prevent relayer abuse.
+ * REQUIRES x402 PAYMENT: 0.5 STT to prevent relayer abuse.
  *
  * The client signs the EIP-7702 authorization locally with their new wallet,
  * and this relayer submits the transaction on their behalf.
@@ -92,7 +92,11 @@ export async function POST(request: NextRequest) {
     if (!paymentResult) {
       console.log('[Enable7702] Payment verification failed')
       return NextResponse.json(
-        { error: 'Payment verification failed' },
+        {
+          error: 'Payment verification failed',
+          hint:
+            'Check NEXT_PUBLIC_USDCE_ADDRESS matches your EIP-3009 token, domainName/domainVersion in packages/payment (use 1 for MockERC20WithEIP3009), and that you signed for the relayer payTo address.',
+        },
         { status: 402 }
       )
     }
@@ -201,7 +205,7 @@ export async function POST(request: NextRequest) {
     if (!settlement) {
       console.error('[Enable7702] Payment settlement failed - aborting 7702 enablement')
       return NextResponse.json(
-        { error: 'Payment failed. Please ensure you have sufficient USDC.e balance.' },
+        { error: 'Payment failed. Please ensure you have sufficient STT balance.' },
         { status: 402 }
       )
     }
@@ -212,15 +216,30 @@ export async function POST(request: NextRequest) {
 
     console.log('[Enable7702] Submitting 7702 transaction for:', targetAddress)
 
-    // Format the authorization for the transaction
+    // Format the authorization for the transaction (JSON body may stringify numbers)
     const formattedAuth = {
       address: authorization.address as Address,
-      chainId: authorization.chainId,
-      nonce: authorization.nonce,
+      chainId: Number(authorization.chainId),
+      nonce: Number(authorization.nonce),
       r: authorization.r as Hex,
       s: authorization.s as Hex,
-      yParity: authorization.yParity,
+      yParity: Number(authorization.yParity) as 0 | 1,
     }
+
+    // Somnia charges ~1.57M gas per EIP-7702 authorization (vs ~25k on Ethereum).
+    // A fixed 100k limit is rejected as "invalid transaction" at eth_sendRawTransaction.
+    const estimatedGas = await publicClient.estimateGas({
+      account: relayerAccount.address,
+      to: targetAddress as Address,
+      data: '0x',
+      authorizationList: [formattedAuth],
+    })
+    const gas = (estimatedGas * BigInt(120)) / BigInt(100)
+
+    console.log('[Enable7702] Gas estimate:', {
+      estimated: estimatedGas.toString(),
+      withBuffer: gas.toString(),
+    })
 
     // Send the transaction with the authorization list
     // The transaction is to the target address with empty data
@@ -229,7 +248,7 @@ export async function POST(request: NextRequest) {
       to: targetAddress as Address,
       data: '0x',
       authorizationList: [formattedAuth],
-      gas: BigInt(100000), // EIP-7702 requires extra gas for the authorization list
+      gas,
     })
 
     console.log('[Enable7702] Transaction submitted:', hash)

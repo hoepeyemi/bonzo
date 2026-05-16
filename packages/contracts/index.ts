@@ -12,7 +12,18 @@ export {
   AGENT_DELEGATOR_ADDRESS,
   getAgentDelegatorAddress,
   isAgentDelegatorDeployed,
+  SOMNIA_AGENTS_PLATFORM_ADDRESS,
+  SOMNIA_AGENT_BRIDGE_ADDRESS,
+  getSomniaAgentsPlatformAddress,
+  getSomniaAgentBridgeAddress,
+  isSomniaAgentBridgeDeployed,
 } from './addresses'
+
+export {
+  somniaAgentsPlatformAbi,
+  somniaAgentBridgeAbi,
+  agentDelegatorSomniaAbi,
+} from './abi/somniaAgents'
 
 // Types
 export type { Address } from 'viem'

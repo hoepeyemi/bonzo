@@ -16,7 +16,7 @@ export function buildAgentDelegatorDomain(walletAddress: Address, chainId: numbe
 }
 
 /**
- * Build EIP-712 domain for USDC.E token contract
+ * Build EIP-712 domain for Somnia testnet STT (EIP-3009) token contract
  */
 export function buildUsdceDomain(chainId: SupportedChainId) {
   const config = USDC_E_CONFIG[chainId]

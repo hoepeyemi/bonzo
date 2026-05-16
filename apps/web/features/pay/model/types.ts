@@ -11,9 +11,9 @@ export type PaymentStatus = 'idle' | 'signing' | 'submitting' | 'success' | 'err
 export interface PaymentParams {
   /** Recipient wallet address */
   recipient: Address
-  /** Initial amount in USD */
-  initialAmountUsd: number
-  /** Initial amount in smallest unit (USDC.E has 6 decimals) */
+  /** Initial amount in STT */
+  initialAmountStt: number
+  /** Initial amount in smallest unit (6 decimals) */
   initialAmountSmallestUnit: number
 }
 

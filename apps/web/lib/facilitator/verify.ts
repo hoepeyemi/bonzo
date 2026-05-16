@@ -2,6 +2,7 @@ import {
   createPublicClient,
   http,
   hashTypedData,
+  recoverTypedDataAddress,
   type Address,
   type Hex,
   type PublicClient,
@@ -71,6 +72,52 @@ function buildEIP3009Hash(payload: PaymentPayload, chainId: number): Hex {
       nonce: payload.nonce,
     },
   })
+}
+
+/**
+ * Verify an EOA EIP-3009 signature via EIP-712 recovery (no external facilitator).
+ */
+async function verifyEoaSignature(
+  payload: PaymentPayload,
+  chainId: number,
+  signature: Hex
+): Promise<{ isValid: boolean; reason?: string }> {
+  const domain = buildUsdceDomain(payload.asset, chainId)
+  const message = {
+    from: payload.from as Address,
+    to: payload.to as Address,
+    value: BigInt(payload.value),
+    validAfter: BigInt(payload.validAfter),
+    validBefore: BigInt(payload.validBefore),
+    nonce: payload.nonce as Hex,
+  }
+
+  try {
+    const recovered = await recoverTypedDataAddress({
+      domain,
+      types: EIP3009_TYPES,
+      primaryType: 'TransferWithAuthorization',
+      message,
+      signature,
+    })
+
+    if (recovered.toLowerCase() !== payload.from.toLowerCase()) {
+      return {
+        isValid: false,
+        reason: `Signer ${recovered} does not match payer ${payload.from}`,
+      }
+    }
+
+    return { isValid: true }
+  } catch (error) {
+    return {
+      isValid: false,
+      reason:
+        error instanceof Error
+          ? error.message
+          : 'EOA signature recovery failed (check token EIP-712 domain name/version)',
+    }
+  }
 }
 
 /**
@@ -153,7 +200,7 @@ async function verifyWithOfficialFacilitator(
 /**
  * Verify a payment signature
  *
- * - For EOA signatures: Forward to the configured x402 facilitator
+ * - For EOA signatures: Recover signer locally (EIP-712); optional external facilitator fallback
  * - For smart account signatures: Verify locally via EIP-1271
  */
 export async function verifyPayment(
@@ -212,26 +259,40 @@ export async function verifyPayment(
 
     let verifyResult: VerifyResult
 
-    if (signatureType === 'eoa' && chainConfig.officialFacilitatorUrl) {
-      // Forward EOA signatures to official facilitator
-      const paymentRequirements: PaymentRequirements = {
-        scheme: 'exact',
-        network: chainConfig.name,
-        payTo: expectedRecipient,
-        asset: header.payload.asset as Address,
-        maxAmountRequired: expectedAmount.toString(),
-        maxTimeoutSeconds: 300,
-        description: 'API access payment',
-        mimeType: 'application/json',
+    if (signatureType === 'eoa') {
+      const eoa = await verifyEoaSignature(
+        header.payload,
+        chainId,
+        header.payload.signature as Hex
+      )
+      verifyResult = {
+        isValid: eoa.isValid,
+        invalidReason: eoa.reason,
+        signatureType: 'eoa',
       }
 
-      verifyResult = await verifyWithOfficialFacilitator(
-        chainConfig.officialFacilitatorUrl,
-        paymentHeaderBase64,
-        paymentRequirements
-      )
+      if (!verifyResult.isValid && chainConfig.officialFacilitatorUrl) {
+        const paymentRequirements: PaymentRequirements = {
+          scheme: 'exact',
+          network: chainConfig.name,
+          payTo: expectedRecipient,
+          asset: header.payload.asset as Address,
+          maxAmountRequired: expectedAmount.toString(),
+          maxTimeoutSeconds: 300,
+          description: 'API access payment',
+          mimeType: 'application/json',
+        }
+
+        const fromFacilitator = await verifyWithOfficialFacilitator(
+          chainConfig.officialFacilitatorUrl,
+          paymentHeaderBase64,
+          paymentRequirements
+        )
+        if (fromFacilitator.isValid) {
+          verifyResult = fromFacilitator
+        }
+      }
     } else {
-      // Verify smart account signature locally via EIP-1271
       const publicClient = createPublicClient({
         transport: http(chainConfig.rpcUrl),
       })
@@ -252,6 +313,7 @@ export async function verifyPayment(
     }
 
     if (!verifyResult.isValid) {
+      console.error('[Facilitator] verifyPayment failed:', verifyResult.invalidReason)
       return null
     }
 

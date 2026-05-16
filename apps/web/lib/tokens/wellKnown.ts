@@ -23,7 +23,7 @@ const WELL_KNOWN_TOKENS_BY_CHAIN: Record<number, WellKnownToken[]> = {
     {
       address: USDC_E_CONFIG[SOMNIA_TESTNET_ID].address,
       symbol: USDC_E_CONFIG[SOMNIA_TESTNET_ID].symbol,
-      name: 'USD Coin',
+      name: 'Somnia Testnet Token',
       decimals: USDC_E_CONFIG[SOMNIA_TESTNET_ID].decimals,
       chainId: SOMNIA_TESTNET_ID,
     },

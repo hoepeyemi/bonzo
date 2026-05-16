@@ -2,17 +2,17 @@ import type { Address } from 'viem'
 import type { ChainConfig, SupportedChainId, NetworkId, TokenConfig } from './types'
 
 /**
- * USDC (EIP-3009) on Somnia Shannon testnet.
- * Override with NEXT_PUBLIC_USDCE_ADDRESS in the web app if you deploy a mock token.
- * Domain name/version must match the token’s EIP-712 metadata on-chain.
+ * Somnia Shannon testnet payment token (EIP-3009).
+ * Override address with NEXT_PUBLIC_USDCE_ADDRESS in the web app if needed.
+ * domainName/domainVersion must match the token contract’s EIP-712 metadata on-chain.
  */
 export const USDC_E_CONFIG: Record<SupportedChainId, TokenConfig> = {
   50312: {
     address: '0x28BEc7E30E6faee657a03e19Bf1128AaD7632A00' as Address,
-    symbol: 'USDC',
+    symbol: 'STT',
     decimals: 6,
-    domainName: 'USD Coin',
-    domainVersion: '2',
+    domainName: 'STT',
+    domainVersion: '1',
   },
 } as const
 

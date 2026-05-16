@@ -2,13 +2,14 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useWalletClient, usePublicClient, useConnection } from 'wagmi'
-import { encodeFunctionData, decodeEventLog, type Hex } from 'viem'
+import { encodeFunctionData, decodeEventLog, type Address, type Hex } from 'viem'
 import { agentDelegatorAbi } from '@x402/contracts'
 import { generateSessionKey } from '@/lib/sessionKeys'
+import { sendDelegatedSelfTransaction } from '@/lib/smartAccount/sendDelegatedSelfTransaction'
 import type { SessionScope } from '@/lib/sessionKeys/types'
 import { serializeScope } from '@/lib/sessionKeys/types'
 import { flattenScopesToOnChainParams, toContractArgs } from '@/lib/sessionKeys/flattenScopes'
-import { getDefaultScope } from '@/lib/sessionKeys/scopeTemplates'
+import { getDefaultGrantScopes } from '@/lib/sessionKeys/scopeTemplates'
 
 export interface ApprovedContract {
   address: `0x${string}`
@@ -81,7 +82,7 @@ export function useGrantSession(): UseGrantSessionReturn {
       const validUntil = validAfter + (params.validityDays * 24 * 60 * 60)
 
       // Step 3: Build scopes - use provided scopes or default to x402:payments
-      const scopes = params.scopes ?? [getDefaultScope(chainId)]
+      const scopes = params.scopes ?? getDefaultGrantScopes(chainId)
 
       // Step 4: Flatten scopes to on-chain parameters
       const onChainParams = flattenScopesToOnChainParams(scopes)
@@ -98,22 +99,27 @@ export function useGrantSession(): UseGrantSessionReturn {
       setStatus('signing')
 
       // Step 5: Send grantSession transaction
-      // Since grantSession requires msg.sender == address(this),
-      // we call it on our own address (the delegated EOA)
-      const hash = await walletClient.sendTransaction({
-        to: address, // Call on self (delegated EOA)
-        data: encodeFunctionData({
-          abi: agentDelegatorAbi,
-          functionName: 'grantSession',
-          args: [
-            sessionKeyAddress,
-            contractArgs.allowedTargets,
-            contractArgs.allowedSelectors,
-            validAfter,
-            validUntil,
-            contractArgs.approvedContracts, // Approved contracts for EIP-1271
-          ],
-        }),
+      // grantSession requires msg.sender == address(this), so we call the delegated EOA.
+      // On Somnia, wallet eth_sendTransaction rejects self-calls with calldata; use
+      // signTransaction + eth_sendRawTransaction instead.
+      const grantCalldata = encodeFunctionData({
+        abi: agentDelegatorAbi,
+        functionName: 'grantSession',
+        args: [
+          sessionKeyAddress,
+          contractArgs.allowedTargets,
+          contractArgs.allowedSelectors,
+          validAfter,
+          validUntil,
+          contractArgs.approvedContracts,
+        ],
+      })
+
+      const hash = await sendDelegatedSelfTransaction({
+        walletClient,
+        publicClient,
+        address: address as Address,
+        data: grantCalldata,
       })
 
       console.log('[grantSession] Transaction sent:', hash)

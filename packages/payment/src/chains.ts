@@ -67,7 +67,7 @@ export function parseChainId(network: string): number {
 }
 
 /**
- * Get USDC.E address for a chain
+ * Get Somnia testnet STT (EIP-3009) address for a chain
  */
 export function getUsdceAddress(chainId: number = DEFAULT_CHAIN_ID): Address {
   if (!isSupportedChain(chainId)) {
@@ -77,7 +77,7 @@ export function getUsdceAddress(chainId: number = DEFAULT_CHAIN_ID): Address {
 }
 
 /**
- * Get USDC.E address (returns null if chain not supported)
+ * Get STT payment token address (returns null if chain not supported)
  */
 export function getUsdceAddressSafe(chainId: number): Address | null {
   return isSupportedChain(chainId) ? USDC_E_CONFIG[chainId].address : null

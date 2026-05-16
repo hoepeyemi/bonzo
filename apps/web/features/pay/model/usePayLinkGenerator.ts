@@ -142,7 +142,7 @@ export function usePayLinkGenerator(): UsePayLinkGeneratorReturn {
 
   const shareOnX = useCallback(() => {
     if (!paymentUrl) return
-    const text = `Pay me $${amount} via x402 - gas-free USDC payment on Somnia`
+    const text = `Pay me ${amount} STT via x402 on Somnia testnet`
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(paymentUrl)}`
     window.open(twitterUrl, '_blank', 'noopener,noreferrer')
   }, [amount, paymentUrl])

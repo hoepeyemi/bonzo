@@ -308,7 +308,7 @@ export function buildPaymentRequirements(details: PaymentDetails): PaymentRequir
 }
 
 /**
- * Get the USDC.E token address for the chain.
+ * Get the Somnia testnet STT (EIP-3009) token address for the chain.
  */
 export function getUsdceAddress(chainId: number = defaultChainId): string {
   return getUsdceConfig(chainId).address

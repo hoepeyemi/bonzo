@@ -17,8 +17,8 @@ interface UseSessionPaymentParams {
   sessionId: string
   /** Payment recipient address */
   recipient: Address
-  /** Initial amount in USD */
-  initialAmountUsd: number
+  /** Initial amount in STT */
+  initialAmountStt: number
 }
 
 export interface UseSessionPaymentReturn {
@@ -46,7 +46,7 @@ export interface UseSessionPaymentReturn {
  * 4. POST to /api/pay/settle (same as manual flow)
  */
 export function useSessionPayment(params: UseSessionPaymentParams): UseSessionPaymentReturn {
-  const { sessionId, recipient, initialAmountUsd } = params
+  const { sessionId, recipient, initialAmountStt } = params
 
   const { session } = useUser()
   const { address, chainId } = useConnection()
@@ -55,7 +55,7 @@ export function useSessionPayment(params: UseSessionPaymentParams): UseSessionPa
   const [status, setStatus] = useState<PaymentStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
-  const [amount, setAmount] = useState(initialAmountUsd.toString())
+  const [amount, setAmount] = useState(initialAmountStt.toString())
 
   // Derived values
   const currentChainId = chainId || defaultChainId

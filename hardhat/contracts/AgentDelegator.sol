@@ -11,6 +11,7 @@ import {AbstractSigner} from "@openzeppelin/contracts/utils/cryptography/signers
 import {SignerERC7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerERC7702.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {IAgentFabricSomniaBridge} from "./interfaces/somnia/IAgentFabricSomniaBridge.sol";
 
 contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     using ECDSA for bytes32;
@@ -79,6 +80,7 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     event SessionGranted(bytes32 indexed sessionId, address indexed sessionKey, uint48 validUntil);
     event SessionRevoked(bytes32 indexed sessionId);
     event ContractApproved(bytes32 indexed sessionId, address indexed approvedContract);
+    event SomniaAgentBridgeUpdated(address indexed bridge);
 
     // ========================
     // Errors
@@ -93,6 +95,22 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     error ContractNotApproved(address targetContract);
     error InvalidCallData();
     error DomainMismatch();
+    error SomniaBridgeNotConfigured();
+
+    /// @custom:storage-location erc7201:agentfabric.agent.delegator.somnia
+    struct SomniaConfigStorage {
+        address agentBridge;
+    }
+
+    // Separate ERC-7201 slot — does not alter existing DelegatorStorage layout.
+    bytes32 private constant SOMNIA_CONFIG_SLOT =
+        0xc8f4e2a1b9d7035648291a0f7e6d5c4b3a2918076e5d4f3b2a10987654321000;
+
+    function _getSomniaConfig() private pure returns (SomniaConfigStorage storage $) {
+        assembly {
+            $.slot := SOMNIA_CONFIG_SLOT
+        }
+    }
 
     // ========================
     // EIP-712 Constants
@@ -144,7 +162,45 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
         ApprovedContract[] calldata approvedContracts
     ) external returns (bytes32 sessionId) {
         require(msg.sender == address(this), "Only owner");
+        return _grantSessionInternal(
+            sessionKey,
+            allowedTargets,
+            allowedSelectors,
+            validAfter,
+            validUntil,
+            approvedContracts
+        );
+    }
 
+    /// @notice Grant a session with the configured Somnia agent bridge auto-allowlisted.
+    function grantSessionWithSomniaBridge(
+        address sessionKey,
+        address[] calldata allowedTargets,
+        bytes4[] calldata allowedSelectors,
+        uint48 validAfter,
+        uint48 validUntil,
+        ApprovedContract[] calldata approvedContracts
+    ) external returns (bytes32 sessionId) {
+        require(msg.sender == address(this), "Only owner");
+        address[] memory targets = _appendSomniaBridgeTarget(allowedTargets);
+        return _grantSessionInternal(
+            sessionKey,
+            targets,
+            allowedSelectors,
+            validAfter,
+            validUntil,
+            approvedContracts
+        );
+    }
+
+    function _grantSessionInternal(
+        address sessionKey,
+        address[] memory allowedTargets,
+        bytes4[] calldata allowedSelectors,
+        uint48 validAfter,
+        uint48 validUntil,
+        ApprovedContract[] calldata approvedContracts
+    ) internal returns (bytes32 sessionId) {
         DelegatorStorage storage $ = _getDelegatorStorage();
 
         sessionId = keccak256(abi.encode(address(this), sessionKey, $.sessionNonce++));
@@ -157,7 +213,6 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
         session.validUntil = validUntil;
         session.active = true;
 
-        // Store approved contracts with domain info for EIP-1271 validation
         for (uint256 i = 0; i < approvedContracts.length; i++) {
             ApprovedContract calldata ac = approvedContracts[i];
             $.sessionContractDomains[sessionId][ac.contractAddress] = DomainInfo({
@@ -168,6 +223,39 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
         }
 
         emit SessionGranted(sessionId, sessionKey, validUntil);
+    }
+
+    function _appendSomniaBridgeTarget(address[] calldata allowedTargets)
+        internal
+        view
+        returns (address[] memory targets)
+    {
+        address bridge = _getSomniaConfig().agentBridge;
+        uint256 len = allowedTargets.length;
+
+        if (bridge == address(0)) {
+            targets = new address[](len);
+            for (uint256 i = 0; i < len; i++) {
+                targets[i] = allowedTargets[i];
+            }
+            return targets;
+        }
+
+        for (uint256 i = 0; i < len; i++) {
+            if (allowedTargets[i] == bridge) {
+                targets = new address[](len);
+                for (uint256 j = 0; j < len; j++) {
+                    targets[j] = allowedTargets[j];
+                }
+                return targets;
+            }
+        }
+
+        targets = new address[](len + 1);
+        for (uint256 i = 0; i < len; i++) {
+            targets[i] = allowedTargets[i];
+        }
+        targets[len] = bridge;
     }
 
     /// @notice Revoke an existing session
@@ -531,5 +619,40 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     /// @notice Check if a contract is approved for a session
     function isContractApproved(bytes32 sessionId, address contractAddr) external view returns (bool) {
         return _getDelegatorStorage().sessionContractDomains[sessionId][contractAddr].nameHash != bytes32(0);
+    }
+
+    // ========================
+    // Somnia Agents (separate storage slot)
+    // ========================
+
+    /// @notice Configure the AgentFabricSomniaBridge used by this smart account.
+    /// @dev Callable only via self-call (same pattern as grantSession).
+    function setSomniaAgentBridge(address bridge) external {
+        require(msg.sender == address(this), "Only owner");
+        _getSomniaConfig().agentBridge = bridge;
+        emit SomniaAgentBridgeUpdated(bridge);
+    }
+
+    function getSomniaAgentBridge() external view returns (address) {
+        return _getSomniaConfig().agentBridge;
+    }
+
+    /// @notice Forward a labeled JSON API agent request through the configured bridge.
+    /// @dev Session keys may call this on address(this) when invokeSomniaLabeledFetch is allowlisted,
+    ///      or call the bridge directly when it is in allowedTargets.
+    function invokeSomniaLabeledFetch(
+        bytes32 label,
+        string calldata url,
+        string calldata jsonSelector,
+        uint8 decimals
+    ) external payable returns (uint256 requestId) {
+        address bridge = _getSomniaConfig().agentBridge;
+        if (bridge == address(0)) revert SomniaBridgeNotConfigured();
+        return IAgentFabricSomniaBridge(bridge).requestLabeledFetch{value: msg.value}(
+            label,
+            url,
+            jsonSelector,
+            decimals
+        );
     }
 }

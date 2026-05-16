@@ -15,8 +15,8 @@ export type PaymentMethod = 'session' | 'manual'
 export interface UsePaymentOrchestrationParams {
   /** Resolved recipient address */
   recipient: Address
-  /** Initial amount in USD */
-  initialAmountUsd: number
+  /** Initial amount in STT */
+  initialAmountStt: number
   /** Initial amount in smallest unit */
   initialAmountSmallestUnit: number
 }
@@ -66,7 +66,7 @@ export interface UsePaymentOrchestrationReturn {
 export function usePaymentOrchestration(
   params: UsePaymentOrchestrationParams
 ): UsePaymentOrchestrationReturn {
-  const { recipient, initialAmountUsd, initialAmountSmallestUnit } = params
+  const { recipient, initialAmountStt, initialAmountSmallestUnit } = params
 
   const { session } = useUser()
   const { chainId } = useConnection()
@@ -87,7 +87,7 @@ export function usePaymentOrchestration(
   // Manual payment hook (wallet signature)
   const manualPayment = usePayment({
     recipient,
-    initialAmountUsd,
+    initialAmountStt,
     initialAmountSmallestUnit,
   })
 
@@ -95,7 +95,7 @@ export function usePaymentOrchestration(
   const sessionPayment = useSessionPayment({
     sessionId: activeSession?.sessionId ?? '',
     recipient,
-    initialAmountUsd,
+    initialAmountStt,
   })
 
   // Use appropriate payment method based on toggle
@@ -157,7 +157,7 @@ export function usePaymentOrchestration(
 
     const parsedAmount = parseFloat(payment.amount)
     const amountStr = payment.isValidAmount ? parsedAmount.toFixed(2) : '0.00'
-    return useSession && activeSession ? `Pay $${amountStr} (Auto)` : `Pay $${amountStr}`
+    return useSession && activeSession ? `Pay ${amountStr} STT (Auto)` : `Pay ${amountStr} STT`
   }, [
     smartAccountStatus,
     isProcessing,

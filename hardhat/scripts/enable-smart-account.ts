@@ -35,14 +35,14 @@ const AGENT_DELEGATOR_ADDRESSES: Record<number, Address> = {
 };
 
 async function main() {
-  const privateKey = process.env.PRIVATE_KEY as Hex | undefined;
+  const privateKey = (process.env.PRIVATE_KEY ?? process.env.HACKATHON_KEY) as Hex | undefined;
   if (!privateKey) {
-    console.error("Error: PRIVATE_KEY environment variable not set.");
+    console.error("Error: PRIVATE_KEY or HACKATHON_KEY environment variable not set.");
     console.error("");
     console.error("Usage:");
-    console.error("  PRIVATE_KEY=0x... npx hardhat run scripts/enable-smart-account.ts --network somniaTestnet");
+    console.error("  npx hardhat run scripts/enable-smart-account.ts --network somniaTestnet");
     console.error("");
-    console.error("Note: Use the same key as HACKATHON_KEY in hardhat/.env (or your shell env).");
+    console.error("Set HACKATHON_KEY in hardhat/.env (or PRIVATE_KEY in the shell).");
     process.exit(1);
   }
 
@@ -110,11 +110,21 @@ async function main() {
     nonce: authorization.nonce,
   });
 
+  // Somnia charges ~1.57M gas per EIP-7702 authorization (see Somnia gas docs).
+  const estimatedGas = await publicClient.estimateGas({
+    account: account.address,
+    to: account.address,
+    data: "0x",
+    authorizationList: [authorization],
+  });
+  const gas = (estimatedGas * 120n) / 100n;
+  console.log("Gas estimate:", estimatedGas.toString(), "using:", gas.toString());
+
   const hash = await walletClient.sendTransaction({
     to: account.address,
     data: "0x",
     authorizationList: [authorization],
-    gas: 100000n,
+    gas,
   });
 
   console.log("Transaction sent:", hash);

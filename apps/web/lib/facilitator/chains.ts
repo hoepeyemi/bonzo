@@ -56,7 +56,7 @@ export function getNetworkFromChainId(chainId: number): string {
 }
 
 /**
- * Get USDC token address for a chain
+ * Get STT payment token address for a chain
  */
 export function getUsdceAddress(chainId: number = defaultChainId): Address {
   return sharedGetUsdceAddress(chainId)

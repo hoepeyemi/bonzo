@@ -88,9 +88,9 @@ export function PayErrorClient({ errorType, recipient, amount }: PayErrorClientP
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount (USD)</Label>
+            <Label htmlFor="amount">Amount (STT)</Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">STT</span>
               <Input
                 id="amount"
                 type="number"
@@ -99,7 +99,7 @@ export function PayErrorClient({ errorType, recipient, amount }: PayErrorClientP
                 placeholder="1.00"
                 value={newAmount}
                 onChange={(e) => setNewAmount(e.target.value)}
-                className="pl-7"
+                className="pl-12"
               />
             </div>
           </div>

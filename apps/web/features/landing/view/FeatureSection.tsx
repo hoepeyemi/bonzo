@@ -44,8 +44,8 @@ const features = [
   },
   {
     icon: Wallet,
-    title: 'Gasless USDC Payments',
-    description: 'Pay with USDC on Somnia. Facilitator can relay gas using EIP-3009 transferWithAuthorization.',
+    title: 'Gasless STT Payments',
+    description: 'Pay with STT on Somnia testnet. Facilitator can relay gas using EIP-3009 transferWithAuthorization.',
     badge: 'User Experience',
   },
 ]

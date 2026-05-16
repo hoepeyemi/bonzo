@@ -22,14 +22,17 @@ import {
   Wallet,
   ShieldAlert,
 } from 'lucide-react'
-import { useChainId, useSignTypedData, useAccount, useReadContract } from 'wagmi'
+import { useChainId, useSignTypedData, useAccount, useReadContract, useBalance } from 'wagmi'
 import { generateAndEnableWallet } from '@/lib/smartAccount'
 import { getAgentDelegatorAddress, isAgentDelegatorDeployed } from '@x402/contracts'
 import { getUsdceConfigSafe } from '@/config/tokens'
-import { erc20Abi, type Address, type Hex, type Hash } from 'viem'
+import { PAYMENT_DECIMALS } from '@/config/currency'
+import { somniaTestnet } from '@/config/somnia-chain'
+import { erc20Abi, formatUnits, type Address, type Hex, type Hash } from 'viem'
 
-// Cost in USDC.e (6 decimals) - $0.50
-const WALLET_GENERATION_COST = BigInt(500000)
+/** Relayer fee via x402 EIP-3009 (payment token uses 6 decimals) */
+const WALLET_GENERATION_COST = BigInt(500_000) // 0.5 STT
+const PAYMENT_DIVISOR = 10 ** PAYMENT_DECIMALS
 import {
   EIP3009_TYPES,
   buildUsdceDomain,
@@ -79,29 +82,47 @@ export function GenerateWalletModal({ open, onOpenChange }: GenerateWalletModalP
   const { signTypedDataAsync } = useSignTypedData()
   const isSupported = isAgentDelegatorDeployed(chainId)
 
-  // Get USDC.e token address for current chain
-  const usdceConfig = getUsdceConfigSafe(chainId)
-  const usdceAddress = usdceConfig?.address
+  const paymentTokenConfig = getUsdceConfigSafe(chainId)
+  const paymentTokenAddress = paymentTokenConfig?.address
 
-  // Check USDC.e balance using ERC20 balanceOf
-  const { data: usdceBalance, isLoading: isBalanceLoading } = useReadContract({
+  const { data: nativeBalance, isLoading: isNativeBalanceLoading } = useBalance({
+    address,
+    query: { enabled: !!address },
+  })
+
+  // x402 payments use the EIP-3009 ERC-20 on Somnia (not native gas STT)
+  const { data: paymentTokenBalance, isLoading: isPaymentBalanceLoading } = useReadContract({
     abi: erc20Abi,
-    address: usdceAddress,
+    address: paymentTokenAddress,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address && !!usdceAddress,
+      enabled: !!address && !!paymentTokenAddress,
     },
   })
 
-  const hasInsufficientBalance = usdceBalance !== undefined
-    ? usdceBalance < WALLET_GENERATION_COST
-    : true
+  const isBalanceLoading = isNativeBalanceLoading || isPaymentBalanceLoading
 
-  // Format balance for display (6 decimals for USDC.e)
-  const formattedBalance = usdceBalance !== undefined
-    ? (Number(usdceBalance) / 1_000_000).toFixed(2)
-    : '0.00'
+  const formattedNativeBalance =
+    nativeBalance !== undefined
+      ? Number(formatUnits(nativeBalance.value, nativeBalance.decimals)).toFixed(3)
+      : '—'
+
+  const formattedPaymentBalance =
+    paymentTokenBalance !== undefined
+      ? (Number(paymentTokenBalance) / PAYMENT_DIVISOR).toFixed(2)
+      : '0.00'
+
+  const hasInsufficientPaymentToken =
+    paymentTokenBalance !== undefined
+      ? paymentTokenBalance < WALLET_GENERATION_COST
+      : true
+
+  const hasNativeGas = nativeBalance !== undefined && nativeBalance.value > BigInt(0)
+
+  const paymentTokenExplorerUrl = paymentTokenAddress
+    ? `${somniaTestnet.blockExplorers.default.url}/address/${paymentTokenAddress}`
+    : somniaTestnet.blockExplorers.default.url
 
   const handleGenerate = useCallback(async () => {
     if (!isSupported || !address) return
@@ -259,7 +280,9 @@ export function GenerateWalletModal({ open, onOpenChange }: GenerateWalletModalP
               <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
                 <h4 className="font-medium text-sm">What happens next:</h4>
                 <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                  <li>Sign a $0.50 USDC payment to cover gas costs</li>
+                  <li>
+                    Sign a 0.5 STT x402 payment (EIP-3009 token — separate from gas STT)
+                  </li>
                   <li>A new wallet will be generated locally in your browser</li>
                   <li>The smart account will be enabled automatically</li>
                   <li>You&apos;ll receive the private key to import into your wallet app</li>
@@ -268,47 +291,66 @@ export function GenerateWalletModal({ open, onOpenChange }: GenerateWalletModalP
 
               <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900 p-3 space-y-2">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  <strong>Cost:</strong> $0.50 USDC.e (covers blockchain gas fees)
+                  <strong>Cost:</strong> 0.5 STT via the Somnia x402 payment token (ERC-20).
                 </p>
                 <p className="text-sm text-blue-600 dark:text-blue-400">
-                  Need USDC.e?{' '}
-                  <a
-                    href="https://vvs.finance/trade/swap?inputCurrency=cro&outputCurrency=0xf951eC28187D9E5Ca673Da8FE6757E6f0Be5F77C&exactAmount=0&exactField=input"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-blue-800 dark:hover:text-blue-200 font-medium"
-                  >
-                    Get it here
-                  </a>{' '}
-                  on VVS Finance.
+                  Native STT in your wallet pays transaction gas. The relayer fee must be paid from{' '}
+                  <strong>STT (x402)</strong> — the EIP-3009 token used for API payments.
                 </p>
               </div>
 
               {/* Balance Status */}
-              {!isBalanceLoading && usdceBalance !== undefined && (
+              {!isBalanceLoading && address && (
                 <div
-                  className={`rounded-lg border p-3 ${
-                    hasInsufficientBalance
+                  className={`rounded-lg border p-3 space-y-2 ${
+                    hasInsufficientPaymentToken
                       ? 'border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900'
                       : 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    {hasInsufficientBalance ? (
-                      <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
+                  <div className="flex items-start gap-2">
+                    {hasInsufficientPaymentToken ? (
+                      <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                     ) : (
-                      <Check className="size-4 text-green-600 dark:text-green-400" />
+                      <Check className="size-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
                     )}
-                    <p
-                      className={`text-sm ${
-                        hasInsufficientBalance
-                          ? 'text-amber-700 dark:text-amber-300'
-                          : 'text-green-700 dark:text-green-300'
-                      }`}
-                    >
-                      <strong>Your Balance:</strong> {formattedBalance} USDC.e
-                      {hasInsufficientBalance && ' (insufficient)'}
-                    </p>
+                    <div className="space-y-1.5 text-sm min-w-0">
+                      <p
+                        className={
+                          hasInsufficientPaymentToken
+                            ? 'text-amber-700 dark:text-amber-300'
+                            : 'text-green-700 dark:text-green-300'
+                        }
+                      >
+                        <strong>STT (x402):</strong> {formattedPaymentBalance} STT
+                        {hasInsufficientPaymentToken
+                          ? ' — need at least 0.5 for this step'
+                          : ' — OK'}
+                      </p>
+                      <p className="text-muted-foreground">
+                        <strong>STT (gas):</strong> {formattedNativeBalance} STT
+                        {hasNativeGas ? ' — OK for network fees' : ' — may need faucet STT for gas'}
+                      </p>
+                      {hasInsufficientPaymentToken && hasNativeGas && (
+                        <p className="text-amber-700 dark:text-amber-300 pt-1">
+                          You have gas STT but not x402 payment token. Fund the EIP-3009 token
+                          (shown as <strong>STT (x402)</strong> in your wallet menu), not only
+                          native balance.
+                        </p>
+                      )}
+                      {hasInsufficientPaymentToken && paymentTokenAddress && (
+                        <p className="pt-1">
+                          <a
+                            href={paymentTokenExplorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline font-medium text-amber-800 dark:text-amber-200"
+                          >
+                            View payment token on Somnia explorer
+                          </a>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -329,11 +371,13 @@ export function GenerateWalletModal({ open, onOpenChange }: GenerateWalletModalP
               </Button>
               <Button
                 onClick={handleGenerate}
-                disabled={!isSupported || !address || hasInsufficientBalance || isBalanceLoading}
+                disabled={
+                  !isSupported || !address || hasInsufficientPaymentToken || isBalanceLoading
+                }
               >
-                {hasInsufficientBalance && !isBalanceLoading
-                  ? 'Insufficient USDC.e'
-                  : 'Generate Wallet ($0.50)'}
+                {hasInsufficientPaymentToken && !isBalanceLoading
+                  ? 'Need 0.5 STT (x402)'
+                  : 'Generate Wallet (0.5 STT)'}
               </Button>
             </DialogFooter>
           </>

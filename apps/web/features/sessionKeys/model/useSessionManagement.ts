@@ -4,7 +4,7 @@ import { useMemo, useCallback } from 'react'
 import { useConnection } from 'wagmi'
 import { useSmartAccount } from '@/features/smartAccount/model/useSmartAccount'
 import { useGrantSession, useSessions, useRevokeSession, type SessionInfo, type GrantSessionStatus } from '.'
-import { getDefaultScope } from '@/lib/sessionKeys/scopeTemplates'
+import { getDefaultGrantScopes } from '@/lib/sessionKeys/scopeTemplates'
 import type { SessionScope } from '@/lib/sessionKeys/types'
 
 /**
@@ -92,7 +92,7 @@ export function useSessionManagement(): UseSessionManagementReturn {
 
     try {
       // Use provided scopes or default to x402 payments scope (30 days)
-      const sessionScopes = scopes ?? [getDefaultScope(chainId)]
+      const sessionScopes = scopes ?? getDefaultGrantScopes(chainId)
       await grantSessionHook({
         validityDays: 30,
         scopes: sessionScopes,

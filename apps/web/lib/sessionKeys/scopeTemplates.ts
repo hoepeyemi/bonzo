@@ -2,6 +2,8 @@ import type { Address, Hex } from 'viem'
 import { somniaTestnet } from '@/config/somnia-chain'
 import { getUsdceConfig } from '@/config/tokens'
 import { getKnownContract } from '@/lib/contracts'
+import { getSomniaAgentsConfig } from '@/lib/somnia/agents'
+import { SOMNIA_BRIDGE_SELECTORS } from '@/lib/somnia/bridgeSelectors'
 import type { EIP712Scope, ExecuteScope, SessionScope } from './types'
 
 /**
@@ -12,7 +14,7 @@ export const SELECTORS = {
   transfer: '0xa9059cbb' as Hex,
   transferFrom: '0x23b872dd' as Hex,
   approve: '0x095ea7b3' as Hex,
-  // EIP-3009 (USDC)
+  // EIP-3009 (STT payment token)
   transferWithAuthorization: '0xe3ee160e' as Hex,
   receiveWithAuthorization: '0xef55bec6' as Hex,
   // EIP-2612 (Permit)
@@ -40,13 +42,13 @@ export const SCOPE_TEMPLATES = {
       id: 'x402:payments',
       type: 'eip712',
       name: 'x402 Payments',
-      description: 'Sign USDC transfer authorizations for x402 API payments. Enables automated payments to API providers.',
+      description: 'Sign STT transfer authorizations for x402 API payments. Enables automated payments to API providers.',
       budgetEnforceable: false,
       approvedContracts: [{
         address: usdce.address,
         name: knownContract?.name ?? usdce.symbol,
         // Domain comes from the known contract registry
-        domain: knownContract?.eip712Domain ?? { name: 'Bridged USDC (Stargate)', version: '1' },
+        domain: knownContract?.eip712Domain ?? { name: usdce.symbol, version: '2' },
         supportedTypes: knownContract?.supportedTypes ?? ['TransferWithAuthorization'],
       }],
     }
@@ -135,9 +137,54 @@ export const SCOPE_TEMPLATES = {
   }),
 
   /**
-   * Native Token (CRO/ETH) Transfers via executeWithSession
+   * Native STT transfers via executeWithSession
    * Target contracts are enforced on-chain for native token
    */
+  /**
+   * Somnia Agents via AgentFabricSomniaBridge (on-chain oracle / JSON API fetches).
+   */
+  'execute:somnia-agents': (chainId: number): ExecuteScope | null => {
+    const { bridgeAddress } = getSomniaAgentsConfig(chainId)
+    if (!bridgeAddress) return null
+
+    return {
+      id: 'execute:somnia-agents',
+      type: 'execute',
+      name: 'Somnia Agents',
+      description:
+        'Invoke Somnia Agents for verified off-chain data (JSON API, oracles). Requires STT deposits per request.',
+      budgetEnforceable: true,
+      targets: [
+        {
+          address: bridgeAddress,
+          name: 'AgentFabricSomniaBridge',
+          selectors: [
+            {
+              selector: SOMNIA_BRIDGE_SELECTORS.requestLabeledFetch,
+              name: 'requestLabeledFetch',
+              description: 'Fetch a labeled JSON API value via Somnia Agents',
+            },
+            {
+              selector: SOMNIA_BRIDGE_SELECTORS.requestJsonApiUint,
+              name: 'requestJsonApiUint',
+              description: 'Fetch a JSON API uint via Somnia Agents',
+            },
+            {
+              selector: SOMNIA_BRIDGE_SELECTORS.quoteJsonApiDeposit,
+              name: 'quoteJsonApiDeposit',
+              description: 'Quote required STT deposit for a JSON API agent call',
+            },
+            {
+              selector: SOMNIA_BRIDGE_SELECTORS.requestAgent,
+              name: 'requestAgent',
+              description: 'Invoke any Somnia agent with a typed callback handler',
+            },
+          ],
+        },
+      ],
+    }
+  },
+
   'execute:native-transfers': (
     symbol: string
   ): ExecuteScope => ({
@@ -155,6 +202,16 @@ export const SCOPE_TEMPLATES = {
  */
 export function getDefaultScope(chainId: number): EIP712Scope {
   return SCOPE_TEMPLATES['x402:payments'](chainId)
+}
+
+/**
+ * Recommended scopes when granting a session (x402 + Somnia agents when bridge is configured).
+ */
+export function getDefaultGrantScopes(chainId: number): SessionScope[] {
+  const scopes: SessionScope[] = [getDefaultScope(chainId)]
+  const somnia = SCOPE_TEMPLATES['execute:somnia-agents'](chainId)
+  if (somnia) scopes.push(somnia)
+  return scopes
 }
 
 /**
@@ -183,16 +240,25 @@ export function getAvailableScopeTemplates(chainId: number): ScopeTemplateInfo[]
     {
       id: 'x402:payments',
       name: 'x402 Payments',
-      description: 'Sign USDC transfer authorizations for x402 API payments',
+      description: 'Sign STT transfer authorizations for x402 API payments',
       type: 'eip712',
       budgetEnforceable: false,
       requiresParams: false,
       factory: () => SCOPE_TEMPLATES['x402:payments'](chainId),
     },
     {
+      id: 'execute:somnia-agents',
+      name: 'Somnia Agents',
+      description: 'Invoke Somnia Agents for verified off-chain data via the AgentFabric bridge',
+      type: 'execute',
+      budgetEnforceable: true,
+      requiresParams: false,
+      factory: () => SCOPE_TEMPLATES['execute:somnia-agents'](chainId) ?? SCOPE_TEMPLATES['x402:payments'](chainId),
+    },
+    {
       id: 'execute:token-transfers',
-      name: 'USDC Transfers',
-      description: 'Execute direct USDC transfers with on-chain target enforcement',
+      name: 'STT Transfers',
+      description: 'Execute direct STT transfers with on-chain target enforcement',
       type: 'execute',
       budgetEnforceable: true,
       requiresParams: false,
@@ -245,7 +311,7 @@ export function getScopeTemplateById(scopeId: string, chainId: number = DEFAULT_
     return {
       id: scopeId,
       name: 'x402 Payments',
-      description: 'Sign USDC transfer authorizations for x402 API payments',
+      description: 'Sign STT transfer authorizations for x402 API payments',
       type: 'eip712',
       budgetEnforceable: false,
       requiresParams: false,

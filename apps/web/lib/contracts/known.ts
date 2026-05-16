@@ -20,8 +20,8 @@ export const KNOWN_CONTRACTS: Record<number, Record<string, KnownContract>> = {
   [SOMNIA_TESTNET_ID]: {
     'usdc': {
       address: USDC_E_CONFIG[SOMNIA_TESTNET_ID].address,
-      name: 'USDC',
-      description: 'Stablecoin for x402 payments on Somnia testnet',
+      name: 'STT',
+      description: 'Somnia testnet token for x402 payments',
       category: 'payment',
     },
   },

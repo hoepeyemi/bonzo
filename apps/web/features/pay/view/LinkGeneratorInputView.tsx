@@ -91,7 +91,8 @@ export function LinkGeneratorInputView({
           />
           <span className="text-2xl text-muted-foreground/50">/</span>
 
-          {/* Amount Input */}
+          {/* Amount (STT) */}
+          <span className="text-sm text-muted-foreground">STT</span>
           <Input
             type="number"
             step="0.01"
@@ -161,7 +162,7 @@ export function LinkGeneratorInputView({
         )}
         {amount && !isValidAmount && (
           <p className="text-center text-sm text-destructive mt-2">
-            Amount must be between $0.01 and $1,000,000
+            Amount must be between 0.01 and 1,000,000 STT
           </p>
         )}
         {isLookingUp && (

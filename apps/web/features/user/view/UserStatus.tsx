@@ -108,7 +108,7 @@ export function UserStatus() {
           {formattedBalance && (
             <>
               <span className="text-muted-foreground">|</span>
-              <span className="text-sm">{formattedBalance.usdce} USDC.E</span>
+              <span className="text-sm">{formattedBalance.usdce} STT</span>
             </>
           )}
           <ChevronDown className="size-3 text-muted-foreground" />
@@ -131,11 +131,11 @@ export function UserStatus() {
             <DropdownMenuLabel>Balance</DropdownMenuLabel>
             <div className="px-2 py-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">USDC.E</span>
+                <span className="text-muted-foreground">STT (x402)</span>
                 <span className="font-mono">{formatCompactNumber(formattedBalance.usdce)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Native</span>
+                <span className="text-muted-foreground">STT (gas)</span>
                 <span className="font-mono">{formatCompactNumber(formattedBalance.native)}</span>
               </div>
             </div>

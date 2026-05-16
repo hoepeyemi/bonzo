@@ -26,7 +26,7 @@ export {
 
 /**
  * Build EIP-712 domain for a token asset
- * Uses USDC.E domain name/version (the only supported token) with the provided asset address
+ * Uses STT EIP-712 domain name/version with the provided asset address
  */
 export function buildUsdceDomain(asset: Address, chainId: number) {
   const config = USDC_E_CONFIG[chainId as SupportedChainId]
