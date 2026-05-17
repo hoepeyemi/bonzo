@@ -25,6 +25,20 @@ export {
   agentDelegatorSomniaAbi,
 } from './abi/somniaAgents'
 
+export {
+  SOMNIA_TESTNET_RPC,
+  somniaTestnetChain,
+  labelToHash,
+  createSomniaPublicClient,
+  createSomniaWalletFromKey,
+  quoteJsonApiDepositWei,
+  readLabeledOracleSnapshot,
+  requestLabeledOracleFetch,
+  type LabeledOracleSnapshot,
+  type SomniaOracleFetchParams,
+  type SomniaOracleFetchResult,
+} from './somniaOracle'
+
 // Types
 export type { Address } from 'viem'
 

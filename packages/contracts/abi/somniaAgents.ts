@@ -138,6 +138,13 @@ export const somniaAgentBridgeAbi = [
   },
   {
     type: 'function',
+    name: 'latestRequestIdByLabel',
+    stateMutability: 'view',
+    inputs: [{ name: 'label', type: 'bytes32' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
     name: 'isPending',
     stateMutability: 'view',
     inputs: [{ name: 'requestId', type: 'uint256' }],
@@ -165,6 +172,15 @@ export const somniaAgentBridgeAbi = [
       { name: 'details', type: 'bytes' },
     ],
     outputs: [],
+  },
+  {
+    type: 'event',
+    name: 'LabeledFetchRequested',
+    inputs: [
+      { name: 'label', type: 'bytes32', indexed: true },
+      { name: 'requestId', type: 'uint256', indexed: true },
+      { name: 'url', type: 'string', indexed: false },
+    ],
   },
   {
     type: 'event',

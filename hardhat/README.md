@@ -34,6 +34,25 @@ npx hardhat run scripts/configure-delegator-somnia-bridge.ts --network somniaTes
 
 **Typed agent callbacks:** `requestAgent(agentId, payload, responseHandler, executionRewardPerAgent)` where `responseHandler` is `handleUintResponse`, `handleStringResponse`, or `handleBytesResponse`. Deposits use `getRequestDeposit()` + configurable per-agent rewards (not a hardcoded 0.03 ether at runtime).
 
+### Request a labeled oracle (programmatic)
+
+```bash
+# hardhat/.env: HACKATHON_KEY=0x...
+SOMNIA_ORACLE_URL="https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd" \
+SOMNIA_ORACLE_SELECTOR="bitcoin.usd" \
+SOMNIA_ORACLE_LABEL="btc-usd" \
+pnpm --filter hardhat somnia:oracle
+```
+
+Or from the web API (server key with native STT):
+
+```bash
+curl http://localhost:3000/api/somnia/labeled-fetch -X POST -H "Content-Type: application/json" \
+  -d '{"label":"btc-usd","url":"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd","jsonSelector":"bitcoin.usd","decimals":8}'
+```
+
+Library: `@x402/contracts` → `quoteJsonApiDepositWei`, `requestLabeledOracleFetch`.
+
 ---
 
 # AgentDelegator Contract
