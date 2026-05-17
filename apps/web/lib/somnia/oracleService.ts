@@ -1,10 +1,6 @@
-import {
-  createSomniaPublicClient,
-  labelToHash,
-  readLabeledOracleSnapshot,
-  type Hex,
-} from '@x402/contracts'
-import { formatEther, formatUnits, type Address } from 'viem'
+import { labelToHash, somniaAgentBridgeAbi } from '@x402/contracts'
+import { createSomniaPublicClient } from './chain'
+import { formatEther, formatUnits, type Address, type Hex } from 'viem'
 import { getConfiguredOracleFeeds, getDefaultOracleFeed, type SomniaOracleFeedConfig } from './config'
 import {
   quoteLabeledOracleFetch,
@@ -14,6 +10,7 @@ import {
 import { requireSomniaAgentBridge } from './agents'
 
 export type { SomniaOracleFeedConfig }
+export { getConfiguredOracleFeeds, getDefaultOracleFeed } from './config'
 
 export interface OracleFeedSnapshot {
   label: string
@@ -69,11 +66,21 @@ export async function readOracleFeedSnapshot(
   const feed = resolveOracleFeed(label)
   const dec = decimals ?? feed.decimals
 
-  const { value, requestId, labelHash } = await readLabeledOracleSnapshot(
-    publicClient,
-    bridge,
-    label
-  )
+  const labelHash = labelToHash(label)
+  const [value, requestId] = await Promise.all([
+    publicClient.readContract({
+      address: bridge,
+      abi: somniaAgentBridgeAbi,
+      functionName: 'latestByLabel',
+      args: [labelHash],
+    }),
+    publicClient.readContract({
+      address: bridge,
+      abi: somniaAgentBridgeAbi,
+      functionName: 'latestRequestIdByLabel',
+      args: [labelHash],
+    }),
+  ])
 
   return {
     label,
@@ -84,7 +91,7 @@ export async function readOracleFeedSnapshot(
     value: value.toString(),
     valueFormatted: formatUnits(value, dec),
     requestId: requestId.toString(),
-    hasValue: value > 0n,
+    hasValue: value > BigInt(0),
     bridgeAddress: bridge,
     explorerBaseUrl: EXPLORER,
   }
@@ -138,7 +145,7 @@ export async function refreshOracleFeed(
     value: fetch.value.toString(),
     valueFormatted: formatUnits(fetch.value, feed.decimals),
     requestId: fetch.requestId.toString(),
-    hasValue: fetch.value > 0n,
+    hasValue: fetch.value > BigInt(0),
     bridgeAddress: quote.bridgeAddress,
     explorerBaseUrl: EXPLORER,
   }

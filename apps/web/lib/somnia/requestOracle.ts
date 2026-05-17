@@ -1,18 +1,15 @@
 import type { Hex } from 'viem'
 import { formatEther } from 'viem'
+import { labelToHash } from '@x402/contracts'
+import { requireSomniaAgentBridge } from './agents'
 import {
-  createSomniaPublicClient,
-  createSomniaWalletFromKey,
-  labelToHash,
   quoteJsonApiDepositWei,
   requestLabeledOracleFetch,
   type SomniaOracleFetchParams,
   type SomniaOracleFetchResult,
-} from '@x402/contracts'
-import { getSomniaAgentsConfig, requireSomniaAgentBridge } from './agents'
+} from './fetchLabeledOracle'
 
 export type { SomniaOracleFetchParams, SomniaOracleFetchResult }
-
 export { labelToHash, quoteJsonApiDepositWei, requestLabeledOracleFetch }
 
 export interface SomniaOracleQuote {
@@ -28,8 +25,7 @@ export async function quoteLabeledOracleFetch(
   chainId?: number
 ): Promise<SomniaOracleQuote> {
   const bridge = requireSomniaAgentBridge(chainId)
-  const publicClient = createSomniaPublicClient()
-  const depositWei = await quoteJsonApiDepositWei(publicClient, bridge)
+  const depositWei = await quoteJsonApiDepositWei(bridge)
   return {
     depositWei,
     depositStt: formatEther(depositWei),
@@ -43,15 +39,15 @@ export async function runLabeledOracleFetchWithKey(
   privateKey: Hex,
   params: Omit<SomniaOracleFetchParams, 'bridgeAddress'> & { chainId?: number }
 ): Promise<SomniaOracleFetchResult> {
-  const { walletClient, publicClient } = createSomniaWalletFromKey(privateKey)
   const bridge = requireSomniaAgentBridge(params.chainId)
-  return requestLabeledOracleFetch(walletClient, publicClient, {
-    ...params,
+  return requestLabeledOracleFetch(privateKey, {
+    label: params.label,
+    url: params.url,
+    jsonSelector: params.jsonSelector,
+    decimals: params.decimals,
     bridgeAddress: bridge,
+    depositBufferBps: params.depositBufferBps,
+    pollIntervalMs: params.pollIntervalMs,
+    pollTimeoutMs: params.pollTimeoutMs,
   })
-}
-
-export function getSomniaOracleEnvDefaults(chainId?: number) {
-  const { bridgeAddress, agentExplorerUrl, jsonApiAgentId } = getSomniaAgentsConfig(chainId)
-  return { bridgeAddress, agentExplorerUrl, jsonApiAgentId }
 }
