@@ -2,6 +2,9 @@
 
 ## Somnia Agents integration
 
+> **Agents ≠ payments.** Somnia Agents fetch off-chain data on-chain; x402 uses STT on chain 50312 separately.  
+> **Path A (live):** call `AgentFabricSomniaBridge` directly. **Path B:** redeploy AgentDelegator — see [`docs/somnia-agents.md`](../docs/somnia-agents.md).
+
 AgentFabric can invoke [Somnia Agents](https://metaversal.gitbook.io/agents/s8KLL5NzoS6LwJVIQCiT/invoking-agents/quickstart) from Solidity for async off-chain data (JSON API, oracles, etc.).
 
 | Contract | Role |
@@ -21,7 +24,7 @@ Add `NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS` and `NEXT_PUBLIC_JSON_API_AGENT_ID
 
 Session keys can allowlist the bridge address in `allowedTargets` to call `requestLabeledFetch` from workflows.
 
-**AgentDelegator integration** (separate ERC-7201 storage slot — requires redeployed `AgentDelegator` bytecode):
+**AgentDelegator integration — Path B only** (not on deployed `0x399…` until redeploy + re-7702):
 
 - `setSomniaAgentBridge(address)` — owner self-call
 - `grantSessionWithSomniaBridge(...)` — auto-appends bridge to `allowedTargets`
@@ -44,14 +47,16 @@ SOMNIA_ORACLE_LABEL="btc-usd" \
 pnpm --filter hardhat somnia:oracle
 ```
 
-Or from the web API (server key with native STT):
+Or from the web API (auth + server key with native STT):
 
 ```bash
-curl http://localhost:3000/api/somnia/labeled-fetch -X POST -H "Content-Type: application/json" \
-  -d '{"label":"btc-usd","url":"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd","jsonSelector":"bitcoin.usd","decimals":8}'
+curl http://localhost:3000/api/somnia/oracle/refresh -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $SOMNIA_ORACLE_API_KEY" \
+  -d '{"label":"btc-usd"}'
 ```
 
-Library: `@x402/contracts` → `quoteJsonApiDepositWei`, `requestLabeledOracleFetch`.
+Library: `@x402/contracts` → `quoteJsonApiDepositAtBridge`, `requestLabeledOracleFetchWithKey`.
 
 ---
 

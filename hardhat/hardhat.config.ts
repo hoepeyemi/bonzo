@@ -36,11 +36,12 @@ export default defineConfig({
       production: {
         version: "0.8.29",
         settings: {
+          evmVersion: "prague",
           optimizer: {
             enabled: true,
             runs: 200,
           },
-          evmVersion: "prague",
+          viaIR: true,
         },
       },
     },

@@ -219,6 +219,30 @@ export const agentDelegatorAbi = [
   },
   {
     inputs: [
+      { internalType: 'address', name: 'sessionKey', type: 'address' },
+      { internalType: 'address[]', name: 'allowedTargets', type: 'address[]' },
+      { internalType: 'bytes4[]', name: 'allowedSelectors', type: 'bytes4[]' },
+      { internalType: 'uint48', name: 'validAfter', type: 'uint48' },
+      { internalType: 'uint48', name: 'validUntil', type: 'uint48' },
+      {
+        components: [
+          { internalType: 'address', name: 'contractAddress', type: 'address' },
+          { internalType: 'bytes32', name: 'nameHash', type: 'bytes32' },
+          { internalType: 'bytes32', name: 'versionHash', type: 'bytes32' },
+        ],
+        internalType: 'struct AgentDelegator.ApprovedContract[]',
+        name: 'approvedContracts',
+        type: 'tuple[]',
+      },
+      { internalType: 'bytes', name: 'signature', type: 'bytes' },
+    ],
+    name: 'grantSessionWithSignature',
+    outputs: [{ internalType: 'bytes32', name: 'sessionId', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
       { internalType: 'bytes32', name: 'sessionId', type: 'bytes32' },
       { internalType: 'address', name: 'contractAddr', type: 'address' },
     ],

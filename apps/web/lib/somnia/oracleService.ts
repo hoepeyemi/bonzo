@@ -1,16 +1,14 @@
-import { labelToHash, somniaAgentBridgeAbi } from '@x402/contracts'
-import { createSomniaPublicClient } from './chain'
+import {
+  labelToHash,
+  readLabeledOracleSnapshotAtBridge,
+  type SomniaOracleFetchResult,
+} from '@x402/contracts'
 import { formatEther, formatUnits, type Address, type Hex } from 'viem'
 import { getConfiguredOracleFeeds, getDefaultOracleFeed, type SomniaOracleFeedConfig } from './config'
-import {
-  quoteLabeledOracleFetch,
-  runLabeledOracleFetchWithKey,
-  type SomniaOracleFetchResult,
-} from './requestOracle'
+import { quoteLabeledOracleFetch, runLabeledOracleFetchWithKey } from './requestOracle'
 import { requireSomniaAgentBridge } from './agents'
 
 export type { SomniaOracleFeedConfig }
-export { getConfiguredOracleFeeds, getDefaultOracleFeed } from './config'
 
 export interface OracleFeedSnapshot {
   label: string
@@ -62,25 +60,13 @@ export async function readOracleFeedSnapshot(
   decimals?: number
 ): Promise<OracleFeedSnapshot> {
   const bridge = requireSomniaAgentBridge()
-  const publicClient = createSomniaPublicClient()
   const feed = resolveOracleFeed(label)
   const dec = decimals ?? feed.decimals
 
-  const labelHash = labelToHash(label)
-  const [value, requestId] = await Promise.all([
-    publicClient.readContract({
-      address: bridge,
-      abi: somniaAgentBridgeAbi,
-      functionName: 'latestByLabel',
-      args: [labelHash],
-    }),
-    publicClient.readContract({
-      address: bridge,
-      abi: somniaAgentBridgeAbi,
-      functionName: 'latestRequestIdByLabel',
-      args: [labelHash],
-    }),
-  ])
+  const { value, requestId, labelHash } = await readLabeledOracleSnapshotAtBridge(
+    bridge,
+    label
+  )
 
   return {
     label,

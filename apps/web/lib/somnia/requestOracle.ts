@@ -1,16 +1,16 @@
 import type { Hex } from 'viem'
 import { formatEther } from 'viem'
-import { labelToHash } from '@x402/contracts'
-import { requireSomniaAgentBridge } from './agents'
 import {
-  quoteJsonApiDepositWei,
-  requestLabeledOracleFetch,
+  labelToHash,
+  quoteJsonApiDepositAtBridge,
+  requestLabeledOracleFetchWithKey,
   type SomniaOracleFetchParams,
   type SomniaOracleFetchResult,
-} from './fetchLabeledOracle'
+} from '@x402/contracts'
+import { requireSomniaAgentBridge } from './agents'
 
 export type { SomniaOracleFetchParams, SomniaOracleFetchResult }
-export { labelToHash, quoteJsonApiDepositWei, requestLabeledOracleFetch }
+export { labelToHash }
 
 export interface SomniaOracleQuote {
   depositWei: bigint
@@ -25,7 +25,7 @@ export async function quoteLabeledOracleFetch(
   chainId?: number
 ): Promise<SomniaOracleQuote> {
   const bridge = requireSomniaAgentBridge(chainId)
-  const depositWei = await quoteJsonApiDepositWei(bridge)
+  const depositWei = await quoteJsonApiDepositAtBridge(bridge)
   return {
     depositWei,
     depositStt: formatEther(depositWei),
@@ -40,14 +40,8 @@ export async function runLabeledOracleFetchWithKey(
   params: Omit<SomniaOracleFetchParams, 'bridgeAddress'> & { chainId?: number }
 ): Promise<SomniaOracleFetchResult> {
   const bridge = requireSomniaAgentBridge(params.chainId)
-  return requestLabeledOracleFetch(privateKey, {
-    label: params.label,
-    url: params.url,
-    jsonSelector: params.jsonSelector,
-    decimals: params.decimals,
+  return requestLabeledOracleFetchWithKey(privateKey, {
+    ...params,
     bridgeAddress: bridge,
-    depositBufferBps: params.depositBufferBps,
-    pollIntervalMs: params.pollIntervalMs,
-    pollTimeoutMs: params.pollTimeoutMs,
   })
 }

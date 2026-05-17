@@ -2,22 +2,15 @@
  * Quote STT deposit and invoke a labeled JSON API Somnia agent via AgentFabricSomniaBridge.
  *
  * Usage:
- *   npx hardhat run scripts/request-somnia-oracle.ts --network somniaTestnet
+ *   pnpm --filter hardhat somnia:oracle
  *
- * Environment (hardhat/.env or shell):
- *   HACKATHON_KEY or PRIVATE_KEY     — payer (needs native STT)
- *   SOMNIA_AGENT_BRIDGE              — default 0xcaa3228c7c8f82581228cba5867f4a84ae0f5a80
- *   SOMNIA_ORACLE_LABEL              — default stt-usd
- *   SOMNIA_ORACLE_URL                — required
- *   SOMNIA_ORACLE_SELECTOR           — required JSON path (e.g. bitcoin.usd)
- *   SOMNIA_ORACLE_DECIMALS           — default 8
- *   SOMNIA_ORACLE_POLL_TIMEOUT_MS    — default 300000
+ * Environment (hardhat/.env):
+ *   HACKATHON_KEY, SOMNIA_ORACLE_URL, SOMNIA_ORACLE_SELECTOR, SOMNIA_ORACLE_LABEL, ...
  */
 import {
-  createSomniaWalletFromKey,
   labelToHash,
-  quoteJsonApiDepositWei,
-  requestLabeledOracleFetch,
+  quoteJsonApiDepositAtBridge,
+  requestLabeledOracleFetchWithKey,
 } from "@x402/contracts";
 import { formatEther, type Address, type Hex } from "viem";
 
@@ -36,23 +29,21 @@ async function main() {
     process.exit(1);
   }
 
-  const label = process.env.SOMNIA_ORACLE_LABEL?.trim() ?? "stt-usd";
+  const label = process.env.SOMNIA_ORACLE_LABEL?.trim() ?? "btc-usd";
   const decimals = Number(process.env.SOMNIA_ORACLE_DECIMALS ?? "8");
   const bridge = (process.env.SOMNIA_AGENT_BRIDGE?.trim() ??
     "0xcaa3228c7c8f82581228cba5867f4a84ae0f5a80") as Address;
 
   const key = (raw.startsWith("0x") ? raw : `0x${raw}`) as Hex;
-  const { account, walletClient, publicClient } = createSomniaWalletFromKey(key);
 
-  console.log("Account:", account.address);
   console.log("Bridge:", bridge);
   console.log("Label:", label, "→", labelToHash(label));
 
-  const quoted = await quoteJsonApiDepositWei(publicClient, bridge);
+  const quoted = await quoteJsonApiDepositAtBridge(bridge);
   console.log("quoteJsonApiDeposit:", formatEther(quoted), "STT");
 
   console.log("\nSubmitting requestLabeledFetch...");
-  const result = await requestLabeledOracleFetch(walletClient, publicClient, {
+  const result = await requestLabeledOracleFetchWithKey(key, {
     bridgeAddress: bridge,
     label,
     url,

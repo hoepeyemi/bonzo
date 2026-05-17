@@ -142,6 +142,8 @@ export const SCOPE_TEMPLATES = {
    */
   /**
    * Somnia Agents via AgentFabricSomniaBridge (on-chain oracle / JSON API fetches).
+   * Path A: session key calls the bridge directly (allowlisted target).
+   * Path B: optional delegator forward via invokeSomniaLabeledFetch after redeploy — see docs/somnia-agents.md.
    */
   'execute:somnia-agents': (chainId: number): ExecuteScope | null => {
     const { bridgeAddress } = getSomniaAgentsConfig(chainId)

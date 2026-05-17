@@ -83,6 +83,15 @@ export async function quoteJsonApiDepositWei(
   })
 }
 
+/** Quote deposit using an internal RPC client (no viem types cross package boundary). */
+export async function quoteJsonApiDepositAtBridge(
+  bridgeAddress: Address,
+  rpcUrl: string = SOMNIA_TESTNET_RPC
+): Promise<bigint> {
+  const publicClient = createSomniaPublicClient(rpcUrl)
+  return quoteJsonApiDepositWei(publicClient, bridgeAddress)
+}
+
 export interface LabeledOracleSnapshot {
   labelHash: Hex
   value: bigint
@@ -111,6 +120,29 @@ export async function readLabeledOracleSnapshot(
     }),
   ])
   return { labelHash, value, requestId }
+}
+
+/** Read cached label value using an internal RPC client. */
+export async function readLabeledOracleSnapshotAtBridge(
+  bridgeAddress: Address,
+  label: string,
+  rpcUrl: string = SOMNIA_TESTNET_RPC
+): Promise<LabeledOracleSnapshot> {
+  const publicClient = createSomniaPublicClient(rpcUrl)
+  return readLabeledOracleSnapshot(publicClient, bridgeAddress, label)
+}
+
+/**
+ * Submit a labeled fetch, poll for the result, and return on-chain value.
+ * Creates viem clients internally — preferred entrypoint for apps and scripts.
+ */
+export async function requestLabeledOracleFetchWithKey(
+  privateKey: Hex,
+  params: SomniaOracleFetchParams
+): Promise<SomniaOracleFetchResult> {
+  const rpcUrl = params.rpcUrl ?? SOMNIA_TESTNET_RPC
+  const { walletClient, publicClient } = createSomniaWalletFromKey(privateKey, rpcUrl)
+  return requestLabeledOracleFetch(walletClient, publicClient, params)
 }
 
 export async function requestLabeledOracleFetch(

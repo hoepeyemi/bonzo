@@ -1,11 +1,16 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { useWalletClient, usePublicClient, useConnection } from 'wagmi'
-import { encodeFunctionData, decodeEventLog, type Address, type Hex } from 'viem'
+import { useWalletClient, usePublicClient, useConnection, useSignTypedData } from 'wagmi'
+import { decodeEventLog, encodeFunctionData, type Address, type Hash, type Hex } from 'viem'
 import { agentDelegatorAbi } from '@x402/contracts'
 import { generateSessionKey } from '@/lib/sessionKeys'
-import { sendDelegatedSelfTransaction } from '@/lib/smartAccount/sendDelegatedSelfTransaction'
+import {
+  sendDelegatedSelfTransaction,
+  isUnsupportedSigningError,
+} from '@/lib/smartAccount/sendDelegatedSelfTransaction'
+import { buildGrantSessionTypedData } from '@/lib/sessionKeys/grantSessionEip712'
+import { relayGrantSessionWithSignature } from '@/lib/sessionKeys/grantSessionRelay'
 import type { SessionScope } from '@/lib/sessionKeys/types'
 import { serializeScope } from '@/lib/sessionKeys/types'
 import { flattenScopesToOnChainParams, toContractArgs } from '@/lib/sessionKeys/flattenScopes'
@@ -17,20 +22,17 @@ export interface ApprovedContract {
 }
 
 export interface GrantSessionParams {
-  /** Session validity in days */
   validityDays: number
-  /** Scopes defining what this session can do */
   scopes?: SessionScope[]
-  /** @deprecated Use scopes instead. Contracts approved for EIP-1271 signatures */
   approvedContracts?: ApprovedContract[]
 }
 
 export type GrantSessionStatus =
   | 'idle'
-  | 'generating'    // Generating session key client-side
-  | 'signing'       // User signing grantSession transaction
-  | 'confirming'    // Waiting for transaction confirmation
-  | 'saving'        // Saving to server database
+  | 'generating'
+  | 'signing'
+  | 'confirming'
+  | 'saving'
   | 'success'
   | 'error'
 
@@ -43,20 +45,31 @@ export interface UseGrantSessionReturn {
   isLoading: boolean
 }
 
-/**
- * Hook for granting a new session key on the smart account
- *
- * Flow:
- * 1. Generate session key client-side (with encrypted private key)
- * 2. Build grantSession transaction
- * 3. User signs and sends transaction
- * 4. Wait for confirmation and parse SessionGranted event
- * 5. POST session to server with encrypted private key
- */
+function parseSessionGrantedFromReceipt(
+  logs: { data: Hex; topics: readonly Hex[] }[]
+): Hex | null {
+  for (const log of logs) {
+    try {
+      const decoded = decodeEventLog({
+        abi: agentDelegatorAbi,
+        data: log.data,
+        topics: [...log.topics] as [signature: Hex, ...args: Hex[]],
+      })
+      if (decoded.eventName === 'SessionGranted') {
+        return (decoded.args as { sessionId: Hex }).sessionId
+      }
+    } catch {
+      // not our event
+    }
+  }
+  return null
+}
+
 export function useGrantSession(): UseGrantSessionReturn {
   const { address, chainId } = useConnection()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
+  const { signTypedDataAsync } = useSignTypedData()
 
   const [status, setStatus] = useState<GrantSessionStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -72,36 +85,16 @@ export function useGrantSession(): UseGrantSessionReturn {
     setSessionId(null)
 
     try {
-      // Step 1: Generate session key client-side
-      console.log('[grantSession] Generating session key...')
       const { address: sessionKeyAddress, encryptedPrivateKey } = await generateSessionKey()
-      console.log('[grantSession] Session key generated:', sessionKeyAddress)
 
-      // Step 2: Calculate time bounds (in Unix seconds)
       const validAfter = Math.floor(Date.now() / 1000)
-      const validUntil = validAfter + (params.validityDays * 24 * 60 * 60)
-
-      // Step 3: Build scopes - use provided scopes or default to x402:payments
+      const validUntil = validAfter + params.validityDays * 24 * 60 * 60
       const scopes = params.scopes ?? getDefaultGrantScopes(chainId)
-
-      // Step 4: Flatten scopes to on-chain parameters
       const onChainParams = flattenScopesToOnChainParams(scopes)
       const contractArgs = toContractArgs(onChainParams)
 
-      console.log('[grantSession] Prepared parameters:', {
-        sessionKeyAddress,
-        scopes: scopes.map(s => s.id),
-        onChainParams,
-        validAfter,
-        validUntil,
-      })
-
       setStatus('signing')
 
-      // Step 5: Send grantSession transaction
-      // grantSession requires msg.sender == address(this), so we call the delegated EOA.
-      // On Somnia, wallet eth_sendTransaction rejects self-calls with calldata; use
-      // signTransaction + eth_sendRawTransaction instead.
       const grantCalldata = encodeFunctionData({
         abi: agentDelegatorAbi,
         functionName: 'grantSession',
@@ -115,54 +108,74 @@ export function useGrantSession(): UseGrantSessionReturn {
         ],
       })
 
-      const hash = await sendDelegatedSelfTransaction({
-        walletClient,
-        publicClient,
-        address: address as Address,
-        data: grantCalldata,
-      })
+      let txHash: Hash
+      let newSessionId: Hex
 
-      console.log('[grantSession] Transaction sent:', hash)
-      setStatus('confirming')
-
-      // Step 6: Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
-
-      if (receipt.status !== 'success') {
-        throw new Error('Transaction failed')
-      }
-
-      console.log('[grantSession] Transaction confirmed:', receipt.blockNumber)
-
-      // Step 7: Parse SessionGranted event to get sessionId
-      // Event: SessionGranted(bytes32 indexed sessionId, address indexed sessionKey, uint48 validUntil)
-      let newSessionId: Hex | null = null
-
-      for (const log of receipt.logs) {
-        try {
-          const decoded = decodeEventLog({
-            abi: agentDelegatorAbi,
-            data: log.data,
-            topics: log.topics,
-          })
-
-          if (decoded.eventName === 'SessionGranted') {
-            newSessionId = (decoded.args as { sessionId: Hex }).sessionId
-            break
-          }
-        } catch {
-          // Not our event, continue
+      try {
+        txHash = await sendDelegatedSelfTransaction({
+          walletClient,
+          publicClient,
+          address: address as Address,
+          data: grantCalldata,
+        })
+        setStatus('confirming')
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+        if (receipt.status !== 'success') {
+          throw new Error('Transaction failed')
         }
+        const parsed = parseSessionGrantedFromReceipt(receipt.logs)
+        if (!parsed) {
+          throw new Error('SessionGranted event not found in transaction logs')
+        }
+        newSessionId = parsed
+      } catch (directError) {
+        const msg =
+          directError instanceof Error ? directError.message : String(directError)
+        if (!isUnsupportedSigningError(msg)) {
+          throw directError
+        }
+
+        // Fallback: EIP-712 + relayer (MetaMask / WalletConnect signTypedData).
+        const sessionNonce = await publicClient.readContract({
+          address: address as Address,
+          abi: agentDelegatorAbi,
+          functionName: 'getSessionNonce',
+        })
+
+        const typedData = buildGrantSessionTypedData({
+          ownerAddress: address as Address,
+          chainId,
+          sessionKey: sessionKeyAddress,
+          onChain: onChainParams,
+          validAfter,
+          validUntil,
+          sessionNonce,
+        })
+
+        const signature = await signTypedDataAsync({
+          domain: typedData.domain,
+          types: typedData.types,
+          primaryType: typedData.primaryType,
+          message: typedData.message,
+        })
+
+        setStatus('confirming')
+        const relay = await relayGrantSessionWithSignature({
+          ownerAddress: address as Address,
+          sessionKeyAddress,
+          onChainParams,
+          validAfter,
+          validUntil,
+          sessionNonce: sessionNonce.toString(),
+          signature,
+        })
+
+        txHash = relay.txHash as Hash
+        newSessionId = relay.sessionId as Hex
       }
 
-      if (!newSessionId) {
-        throw new Error('SessionGranted event not found in transaction logs')
-      }
-
-      console.log('[grantSession] Session ID:', newSessionId)
       setStatus('saving')
 
-      // Step 8: Save to server
       const response = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,10 +183,8 @@ export function useGrantSession(): UseGrantSessionReturn {
           sessionId: newSessionId,
           sessionKeyAddress,
           encryptedPrivateKey,
-          // Scoped format
           scopes: scopes.map(serializeScope),
           onChainParams,
-          // Legacy fields for backwards compatibility
           allowedTargets: contractArgs.allowedTargets,
           allowedSelectors: contractArgs.allowedSelectors,
           validAfter: new Date(validAfter * 1000).toISOString(),
@@ -187,18 +198,20 @@ export function useGrantSession(): UseGrantSessionReturn {
         throw new Error(err.error || 'Failed to save session to server')
       }
 
-      console.log('[grantSession] Session saved to server')
       setSessionId(newSessionId)
       setStatus('success')
-
       return newSessionId
     } catch (err) {
       console.error('[grantSession] Failed:', err)
-      setError(err instanceof Error ? err.message : 'Failed to grant session')
+      const message = err instanceof Error ? err.message : 'Failed to grant session'
+      const hint = message.includes('grantSessionWithSignature')
+        ? message
+        : `${message}. If using MetaMask on Somnia, redeploy AgentDelegator with grantSessionWithSignature (see docs/somnia-agents.md).`
+      setError(hint)
       setStatus('error')
       throw err
     }
-  }, [walletClient, publicClient, address, chainId])
+  }, [walletClient, publicClient, address, chainId, signTypedDataAsync])
 
   const reset = useCallback(() => {
     setStatus('idle')
@@ -206,12 +219,15 @@ export function useGrantSession(): UseGrantSessionReturn {
     setSessionId(null)
   }, [])
 
-  return useMemo(() => ({
-    status,
-    error,
-    sessionId,
-    grantSession,
-    reset,
-    isLoading: ['generating', 'signing', 'confirming', 'saving'].includes(status),
-  }), [status, error, sessionId, grantSession, reset])
+  return useMemo(
+    () => ({
+      status,
+      error,
+      sessionId,
+      grantSession,
+      reset,
+      isLoading: ['generating', 'signing', 'confirming', 'saving'].includes(status),
+    }),
+    [status, error, sessionId, grantSession, reset]
+  )
 }

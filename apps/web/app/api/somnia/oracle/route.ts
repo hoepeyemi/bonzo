@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { formatEther } from 'viem'
+import { getConfiguredOracleFeeds } from '@/lib/somnia/config'
 import {
-  getConfiguredOracleFeeds,
   listOracleFeedSnapshots,
   readOracleFeedSnapshot,
   resolveOracleFeed,
