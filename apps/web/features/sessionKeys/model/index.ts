@@ -3,3 +3,8 @@ export { useSessions, type SessionInfo, type UseSessionsReturn } from './useSess
 export { useRevokeSession, type UseRevokeSessionReturn } from './useRevokeSession'
 export { useSessionManagement, type SmartAccountUIStatus, type UseSessionManagementReturn } from './useSessionManagement'
 export { useKnownContractMetadata, type UseKnownContractMetadataReturn } from './useKnownContractMetadata'
+export {
+  useMintX402PaymentToken,
+  type MintX402Status,
+  type UseMintX402PaymentTokenOptions,
+} from './useMintX402PaymentToken'

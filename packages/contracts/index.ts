@@ -26,12 +26,6 @@ export {
 } from './abi/somniaAgents'
 
 export {
-  SOMNIA_TESTNET_RPC_URLS,
-  resolveSomniaTestnetRpcUrl,
-  getSomniaTestnetRpcUrls,
-} from './somniaRpc'
-
-export {
   SOMNIA_TESTNET_RPC,
   somniaTestnetChain,
   labelToHash,

@@ -24,7 +24,7 @@ export const CHAIN_CONFIGS: Record<SupportedChainId, ChainConfig> = {
     chainId: 50312,
     networkId: 'somnia-testnet',
     usdce: USDC_E_CONFIG[50312],
-    rpcUrl: 'https://dream-rpc.somnia.network',
+    rpcUrl: 'https://api.infra.testnet.somnia.network',
     /** Set NEXT_PUBLIC_X402_FACILITATOR_URL in the web app; no public Somnia facilitator in this package */
     officialFacilitatorUrl: null,
   },

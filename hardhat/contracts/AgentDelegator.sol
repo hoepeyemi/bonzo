@@ -133,11 +133,6 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     bytes32 private constant EXECUTE_WITH_SESSION_TYPEHASH =
         keccak256("ExecuteWithSession(bytes32 sessionId,bytes32 mode,bytes executionData)");
 
-    /// @notice Off-chain owner approval for grantSession (relayer submits to the EOA).
-    bytes32 private constant GRANT_SESSION_TYPEHASH = keccak256(
-        "GrantSession(address sessionKey,bytes32 targetsHash,bytes32 selectorsHash,uint48 validAfter,uint48 validUntil,bytes32 contractsHash,uint256 nonce)"
-    );
-
     function _domainSeparatorV4() internal view returns (bytes32) {
         return keccak256(abi.encode(EIP712_DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, block.chainid, address(this)));
     }
@@ -191,47 +186,6 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
         return _grantSessionInternal(
             sessionKey,
             targets,
-            allowedSelectors,
-            validAfter,
-            validUntil,
-            approvedContracts
-        );
-    }
-
-    /// @notice Grant a session when the owner signs EIP-712 typed data (any payer may submit).
-    /// @dev For Somnia EIP-7702 accounts where wallets lack eth_signTransaction / eth_sign.
-    function grantSessionWithSignature(
-        address sessionKey,
-        address[] calldata allowedTargets,
-        bytes4[] calldata allowedSelectors,
-        uint48 validAfter,
-        uint48 validUntil,
-        ApprovedContract[] calldata approvedContracts,
-        bytes calldata signature
-    ) external returns (bytes32 sessionId) {
-        DelegatorStorage storage $ = _getDelegatorStorage();
-        uint256 nonce = $.sessionNonce;
-
-        bytes32 structHash = keccak256(
-            abi.encode(
-                GRANT_SESSION_TYPEHASH,
-                sessionKey,
-                keccak256(abi.encodePacked(allowedTargets)),
-                keccak256(abi.encodePacked(allowedSelectors)),
-                validAfter,
-                validUntil,
-                keccak256(abi.encode(approvedContracts)),
-                nonce
-            )
-        );
-
-        bytes32 digest = _hashTypedDataV4(structHash);
-        address signer = digest.recover(signature);
-        require(signer == address(this), "Invalid signature");
-
-        return _grantSessionInternal(
-            sessionKey,
-            allowedTargets,
             allowedSelectors,
             validAfter,
             validUntil,

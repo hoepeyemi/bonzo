@@ -12,6 +12,11 @@ import { somniaTestnet } from '@/config/somnia-chain'
 
 const EIP7702_DELEGATION_PREFIX = '0xef0100'
 
+/**
+ * Returns true when the address is an EIP-7702 delegated account on Somnia.
+ * Somnia treats these as "internal accounts" and rejects wallet eth_sendTransaction
+ * self-calls that include calldata (e.g. grantSession).
+ */
 export async function isSomniaDelegatedAccount(
   publicClient: PublicClient,
   address: Address
@@ -23,6 +28,12 @@ export async function isSomniaDelegatedAccount(
   return Boolean(code?.toLowerCase().startsWith(EIP7702_DELEGATION_PREFIX))
 }
 
+/**
+ * Sign a prepared transaction for broadcast via eth_sendRawTransaction.
+ *
+ * 1. eth_signTransaction (Rabby experimental, some wallets)
+ * 2. eth_sign on keccak256(RLP(unsigned)) — MetaMask, WalletConnect, etc.
+ */
 async function signPreparedTransaction(
   walletClient: WalletClient,
   address: Address,
@@ -51,25 +62,21 @@ async function signPreparedTransaction(
       const ethSignMsg =
         ethSignError instanceof Error ? ethSignError.message : String(ethSignError)
       throw new Error(
-        `Wallet cannot sign transactions (signTransaction: ${signTxMsg}; eth_sign: ${ethSignMsg})`
+        `Could not sign the session transaction. ` +
+          `signTransaction: ${signTxMsg}. eth_sign: ${ethSignMsg}. ` +
+          `Try Rabby (Settings → Experimental → eth_signTransaction) or approve the eth_sign prompt in your wallet.`
       )
     }
   }
 }
 
-export function isUnsupportedSigningError(message: string): boolean {
-  const lower = message.toLowerCase()
-  return (
-    lower.includes('eth_signtransaction') ||
-    lower.includes('eth_sign') ||
-    lower.includes('does not exist') ||
-    lower.includes('not supported') ||
-    lower.includes('cannot sign') ||
-    lower.includes('cannot include data') || // Somnia: "External transactions to internal accounts cannot include data"
-    lower.includes('internal account')
-  )
-}
-
+/**
+ * Send a transaction from a delegated EOA to itself with calldata.
+ *
+ * On Somnia, wallet providers reject eth_sendTransaction when to === from and data
+ * is non-empty on delegated accounts. Signing locally and broadcasting via
+ * eth_sendRawTransaction works (execution is valid per eth_estimateGas).
+ */
 export async function sendDelegatedSelfTransaction({
   walletClient,
   publicClient,
@@ -100,22 +107,6 @@ export async function sendDelegatedSelfTransaction({
   })
   const gas = (estimatedGas * BigInt(120)) / BigInt(100)
 
-  // Wallets that only support eth_sendTransaction (e.g. some WalletConnect paths).
-  try {
-    return await walletClient.sendTransaction({
-      account: address,
-      chain,
-      to: address,
-      data,
-      gas,
-    })
-  } catch (sendError) {
-    const sendMsg = sendError instanceof Error ? sendError.message : String(sendError)
-    if (!isUnsupportedSigningError(sendMsg)) {
-      throw sendError
-    }
-  }
-
   const request = await walletClient.prepareTransactionRequest({
     account: address,
     chain,
@@ -125,11 +116,27 @@ export async function sendDelegatedSelfTransaction({
   })
 
   const serializable = { ...request } as TransactionSerializable
-  const signed = await signPreparedTransaction(
-    walletClient,
-    address,
-    chain,
-    serializable
-  )
-  return publicClient.sendRawTransaction({ serializedTransaction: signed })
+
+  try {
+    const signed = await signPreparedTransaction(
+      walletClient,
+      address,
+      chain,
+      serializable
+    )
+    return publicClient.sendRawTransaction({ serializedTransaction: signed })
+  } catch (rawPathError) {
+    // Some wallets only expose sendTransaction; worth one attempt before failing.
+    try {
+      return await walletClient.sendTransaction({
+        account: address,
+        chain,
+        to: address,
+        data,
+        gas,
+      })
+    } catch {
+      throw rawPathError
+    }
+  }
 }

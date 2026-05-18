@@ -10,8 +10,8 @@ import type { Address } from 'viem'
  * AgentDelegator contract addresses by chain ID
  */
 export const AGENT_DELEGATOR_ADDRESS: Record<number, Address> = {
-  // Somnia Shannon testnet — ignition deploy chain-50312 (grantSessionWithSignature + Somnia helpers)
-  50312: '0xd19BB4bD6C565A0128E18b480c055De43f7F1DA9',
+  // Somnia Shannon testnet — Path A delegator (no invokeSomniaLabeledFetch; use bridge directly)
+  50312: '0x399A377CAAE39Ef521782197C3A4c7159a7274cC',
 } as const
 
 /**

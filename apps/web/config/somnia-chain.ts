@@ -10,19 +10,11 @@ export const somniaTestnet = defineChain({
   nativeCurrency: { name: 'Somnia Test Token', symbol: 'STT', decimals: 18 },
   rpcUrls: {
     default: {
-      http: [
-        'https://dream-rpc.somnia.network',
-        'https://somnia-json-rpc.stakely.io',
-        'https://api.infra.testnet.somnia.network',
-      ],
+      http: ['https://api.infra.testnet.somnia.network'],
       webSocket: ['wss://api.infra.testnet.somnia.network/ws'],
     },
     public: {
-      http: [
-        'https://dream-rpc.somnia.network',
-        'https://somnia-json-rpc.stakely.io',
-        'https://api.infra.testnet.somnia.network',
-      ],
+      http: ['https://api.infra.testnet.somnia.network'],
       webSocket: ['wss://api.infra.testnet.somnia.network/ws'],
     },
   },

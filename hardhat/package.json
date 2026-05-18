@@ -19,6 +19,7 @@
     "@x402/contracts": "workspace:*"
   },
   "scripts": {
-    "somnia:oracle": "hardhat run scripts/request-somnia-oracle.ts --network somniaTestnet"
+    "somnia:oracle": "hardhat run scripts/request-somnia-oracle.ts --network somniaTestnet",
+    "mint:x402": "hardhat run scripts/mint-payment-token-to.ts --network somniaTestnet"
   }
 }

@@ -28,11 +28,12 @@ import { getAgentDelegatorAddress, isAgentDelegatorDeployed } from '@x402/contra
 import { getUsdceConfigSafe } from '@/config/tokens'
 import { PAYMENT_DECIMALS } from '@/config/currency'
 import { somniaTestnet } from '@/config/somnia-chain'
-import { erc20Abi, formatUnits, type Address, type Hex, type Hash } from 'viem'
+import { DEFAULT_MINT_HUMAN_AMOUNT } from '@/lib/payment/paymentToken'
+import { useMintX402PaymentToken } from '../model/useMintX402PaymentToken'
+import { erc20Abi, formatUnits, parseUnits, type Address, type Hex, type Hash } from 'viem'
 
-/** Relayer fee via x402 EIP-3009 (payment token uses 6 decimals) */
-const WALLET_GENERATION_COST = BigInt(500_000) // 0.5 STT
-const PAYMENT_DIVISOR = 10 ** PAYMENT_DECIMALS
+/** Relayer fee via x402 EIP-3009 (0.5 STT in token native decimals) */
+const WALLET_GENERATION_COST_HUMAN = '0.5'
 import {
   EIP3009_TYPES,
   buildUsdceDomain,
@@ -90,8 +91,24 @@ export function GenerateWalletModal({ open, onOpenChange }: GenerateWalletModalP
     query: { enabled: !!address },
   })
 
+  const { data: paymentTokenDecimals, isLoading: isDecimalsLoading } = useReadContract({
+    abi: erc20Abi,
+    address: paymentTokenAddress,
+    functionName: 'decimals',
+    query: { enabled: !!paymentTokenAddress },
+  })
+
+  const tokenDecimals =
+    paymentTokenDecimals !== undefined ? Number(paymentTokenDecimals) : PAYMENT_DECIMALS
+
+  const walletGenerationCost = parseUnits(WALLET_GENERATION_COST_HUMAN, tokenDecimals)
+
   // x402 payments use the EIP-3009 ERC-20 on Somnia (not native gas STT)
-  const { data: paymentTokenBalance, isLoading: isPaymentBalanceLoading } = useReadContract({
+  const {
+    data: paymentTokenBalance,
+    isLoading: isPaymentBalanceLoading,
+    refetch: refetchPaymentBalance,
+  } = useReadContract({
     abi: erc20Abi,
     address: paymentTokenAddress,
     functionName: 'balanceOf',
@@ -101,7 +118,16 @@ export function GenerateWalletModal({ open, onOpenChange }: GenerateWalletModalP
     },
   })
 
-  const isBalanceLoading = isNativeBalanceLoading || isPaymentBalanceLoading
+  const {
+    mint: mintPaymentToken,
+    isLoading: isMintingPaymentToken,
+    error: mintError,
+    canMint,
+    txHash: mintTxHash,
+  } = useMintX402PaymentToken({ humanAmount: DEFAULT_MINT_HUMAN_AMOUNT })
+
+  const isBalanceLoading =
+    isNativeBalanceLoading || isPaymentBalanceLoading || isDecimalsLoading
 
   const formattedNativeBalance =
     nativeBalance !== undefined
@@ -110,13 +136,18 @@ export function GenerateWalletModal({ open, onOpenChange }: GenerateWalletModalP
 
   const formattedPaymentBalance =
     paymentTokenBalance !== undefined
-      ? (Number(paymentTokenBalance) / PAYMENT_DIVISOR).toFixed(2)
+      ? Number(formatUnits(paymentTokenBalance, tokenDecimals)).toFixed(2)
       : '0.00'
 
   const hasInsufficientPaymentToken =
     paymentTokenBalance !== undefined
-      ? paymentTokenBalance < WALLET_GENERATION_COST
+      ? paymentTokenBalance < walletGenerationCost
       : true
+
+  const handleMintPaymentToken = useCallback(async () => {
+    await mintPaymentToken()
+    await refetchPaymentBalance()
+  }, [mintPaymentToken, refetchPaymentBalance])
 
   const hasNativeGas = nativeBalance !== undefined && nativeBalance.value > BigInt(0)
 
@@ -339,16 +370,48 @@ export function GenerateWalletModal({ open, onOpenChange }: GenerateWalletModalP
                         </p>
                       )}
                       {hasInsufficientPaymentToken && paymentTokenAddress && (
-                        <p className="pt-1">
+                        <div className="pt-2 space-y-2">
+                          {canMint && hasNativeGas && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="w-full"
+                              disabled={isMintingPaymentToken}
+                              onClick={() => void handleMintPaymentToken()}
+                            >
+                              {isMintingPaymentToken ? (
+                                <>
+                                  <Loader2 className="size-4 mr-2 animate-spin" />
+                                  Minting via Rabby…
+                                </>
+                              ) : (
+                                <>Mint {DEFAULT_MINT_HUMAN_AMOUNT} STT (x402) to this wallet</>
+                              )}
+                            </Button>
+                          )}
+                          {canMint && !hasNativeGas && (
+                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                              Get native STT from the Somnia faucet for gas, then use Mint above.
+                            </p>
+                          )}
+                          {mintError && (
+                            <p className="text-xs text-destructive">{mintError}</p>
+                          )}
+                          {mintTxHash && (
+                            <p className="text-xs font-mono break-all text-muted-foreground">
+                              Mint tx: {mintTxHash}
+                            </p>
+                          )}
                           <a
                             href={paymentTokenExplorerUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="underline font-medium text-amber-800 dark:text-amber-200"
+                            className="underline text-xs font-medium text-amber-800 dark:text-amber-200 block"
                           >
                             View payment token on Somnia explorer
                           </a>
-                        </p>
+                        </div>
                       )}
                     </div>
                   </div>
