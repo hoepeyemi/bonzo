@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useWalletClient, usePublicClient, useConnection, useSignTypedData } from 'wagmi'
-import { decodeEventLog, encodeFunctionData, type Address, type Hash, type Hex } from 'viem'
+import { decodeEventLog, encodeFunctionData, hashTypedData, type Address, type Hash, type Hex } from 'viem'
 import { agentDelegatorAbi } from '@x402/contracts'
 import { generateSessionKey } from '@/lib/sessionKeys'
 import {
@@ -152,12 +152,25 @@ export function useGrantSession(): UseGrantSessionReturn {
           sessionNonce,
         })
 
-        const signature = await signTypedDataAsync({
-          domain: typedData.domain,
-          types: typedData.types,
-          primaryType: typedData.primaryType,
-          message: typedData.message,
-        })
+        // Somnia blocks signTypedData for EIP-7702 delegated accounts
+        // ("External signature requests cannot use internal accounts as the verifying contract").
+        // Use signMessage with raw hash (viem signs without prefix when raw is specified).
+        let signature: Hex
+        if (chainId === 50312) {
+          const hash = hashTypedData(typedData)
+          // viem's signMessage with { raw } signs the raw bytes without Ethereum prefix
+          signature = await walletClient.signMessage({
+            account: address as Address,
+            message: { raw: hash },
+          })
+        } else {
+          signature = await signTypedDataAsync({
+            domain: typedData.domain,
+            types: typedData.types,
+            primaryType: typedData.primaryType,
+            message: typedData.message,
+          })
+        }
 
         setStatus('confirming')
         const relay = await relayGrantSessionWithSignature({
@@ -206,7 +219,7 @@ export function useGrantSession(): UseGrantSessionReturn {
       const message = err instanceof Error ? err.message : 'Failed to grant session'
       const hint = message.includes('grantSessionWithSignature')
         ? message
-        : `${message}. If using MetaMask on Somnia, redeploy AgentDelegator with grantSessionWithSignature (see docs/somnia-agents.md).`
+        : `${message}. On Somnia, re-enable EIP-7702 to the latest AgentDelegator (0xd19…1DA9) if you delegated to an older implementation.`
       setError(hint)
       setStatus('error')
       throw err

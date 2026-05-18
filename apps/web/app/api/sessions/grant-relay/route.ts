@@ -4,6 +4,10 @@ import {
   createWalletClient,
   decodeEventLog,
   encodeFunctionData,
+  hashTypedData,
+  recoverMessageAddress,
+  keccak256,
+  toBytes,
   http,
   type Address,
   type Hex,
@@ -12,6 +16,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { agentDelegatorAbi } from '@x402/contracts'
 import { somniaTestnet } from '@/config/somnia-chain'
 import { toContractArgs } from '@/lib/sessionKeys/flattenScopes'
+import { buildGrantSessionTypedData } from '@/lib/sessionKeys/grantSessionEip712'
 import type { OnChainParams } from '@/lib/sessionKeys/types'
 
 /**
@@ -73,6 +78,47 @@ export async function POST(request: NextRequest) {
       chain: somniaTestnet,
       transport: http(rpcUrl),
     })
+
+    // Debug: verify signature recovery before sending
+    const typedData = buildGrantSessionTypedData({
+      ownerAddress,
+      chainId: somniaTestnet.id,
+      sessionKey: sessionKeyAddress,
+      onChain: onChainParams,
+      validAfter,
+      validUntil,
+      sessionNonce: BigInt(body.sessionNonce),
+    })
+    
+    const eip712Hash = hashTypedData(typedData)
+    
+    // Try recovery with Ethereum message prefix (what personal_sign uses)
+    const prefixedMessage = keccak256(
+      new Uint8Array([
+        ...toBytes('\x19Ethereum Signed Message:\n32'),
+        ...toBytes(eip712Hash),
+      ])
+    )
+    
+    const recovered = await recoverMessageAddress({
+      message: { raw: eip712Hash },
+      signature,
+    })
+    
+    console.log('[grant-relay] Signature verification:')
+    console.log('  Expected signer:', ownerAddress)
+    console.log('  Recovered (raw):', recovered)
+    console.log('  EIP-712 hash:', eip712Hash)
+    console.log('  Signature:', signature)
+    
+    if (recovered.toLowerCase() !== ownerAddress.toLowerCase()) {
+      return NextResponse.json(
+        {
+          error: `Signature verification failed. Expected ${ownerAddress}, recovered ${recovered}`,
+        },
+        { status: 400 }
+      )
+    }
 
     const hash = await walletClient.sendTransaction({
       account,

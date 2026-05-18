@@ -64,7 +64,9 @@ export function isUnsupportedSigningError(message: string): boolean {
     lower.includes('eth_sign') ||
     lower.includes('does not exist') ||
     lower.includes('not supported') ||
-    lower.includes('cannot sign')
+    lower.includes('cannot sign') ||
+    lower.includes('cannot include data') || // Somnia: "External transactions to internal accounts cannot include data"
+    lower.includes('internal account')
   )
 }
 

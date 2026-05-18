@@ -16,14 +16,15 @@ import {
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts'
 import { somniaAgentBridgeAbi } from './abi/somniaAgents.js'
 import { getSomniaAgentBridgeAddress } from './addresses.js'
+import { resolveSomniaTestnetRpcUrl, getSomniaTestnetRpcUrls } from './somniaRpc.js'
 
-export const SOMNIA_TESTNET_RPC = 'https://api.infra.testnet.somnia.network'
+export const SOMNIA_TESTNET_RPC = resolveSomniaTestnetRpcUrl()
 
 export const somniaTestnetChain = {
   id: 50312,
   name: 'Somnia Testnet',
   nativeCurrency: { name: 'STT', symbol: 'STT', decimals: 18 },
-  rpcUrls: { default: { http: [SOMNIA_TESTNET_RPC] } },
+  rpcUrls: { default: { http: [...getSomniaTestnetRpcUrls()] } },
 } as const
 
 export interface SomniaOracleFetchParams {

@@ -7,32 +7,39 @@
  * Usage:
  *   PRIVATE_KEY=0x... npx hardhat run scripts/enable-smart-account.ts --network somniaTestnet
  *
+ * Optional: SOMNIA_RPC_URL=https://dream-rpc.somnia.network (if api.infra times out)
+ *
  * Note: EIP-7702 signAuthorization requires a local account (direct private key access),
  * not a JSON-RPC account. This is why we read the private key from environment directly.
  */
 
-import hre from "hardhat";
+import { getAgentDelegatorAddress, getSomniaTestnetRpcUrls } from "@x402/contracts";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   createWalletClient,
   createPublicClient,
+  fallback,
   http,
   defineChain,
-  type Address,
   type Hex,
 } from "viem";
 
+const SOMNIA_TESTNET_CHAIN_ID = 50312;
+
 const somniaTestnet = defineChain({
-  id: 50312,
+  id: SOMNIA_TESTNET_CHAIN_ID,
   name: "Somnia Testnet",
   nativeCurrency: { name: "STT", symbol: "STT", decimals: 18 },
-  rpcUrls: { default: { http: ["https://api.infra.testnet.somnia.network"] } },
+  rpcUrls: { default: { http: [...getSomniaTestnetRpcUrls()] } },
 });
 
-// AgentDelegator contract address by chain
-const AGENT_DELEGATOR_ADDRESSES: Record<number, Address> = {
-  50312: "0x399A377CAAE39Ef521782197C3A4c7159a7274cC",
-};
+function somniaTransport() {
+  return fallback(
+    getSomniaTestnetRpcUrls().map((url) =>
+      http(url, { timeout: 30_000, retryCount: 1 })
+    )
+  );
+}
 
 async function main() {
   const privateKey = (process.env.PRIVATE_KEY ?? process.env.HACKATHON_KEY) as Hex | undefined;
@@ -50,34 +57,23 @@ async function main() {
     privateKey.startsWith("0x") ? privateKey : (`0x${privateKey}` as Hex)
   );
 
-  const connection = await hre.network.connect();
-  const publicClientHh = await connection.viem.getPublicClient();
-  const chainId = await publicClientHh.getChainId();
+  const chainId = SOMNIA_TESTNET_CHAIN_ID;
+  const contractAddress = getAgentDelegatorAddress(chainId);
+  const rpcUrls = getSomniaTestnetRpcUrls();
 
   console.log("Chain ID:", chainId);
+  console.log("RPC URLs:", rpcUrls.join(", "));
   console.log("Account address:", account.address);
 
-  const contractAddress = AGENT_DELEGATOR_ADDRESSES[chainId];
-  if (!contractAddress) {
-    throw new Error(`AgentDelegator not deployed on chain ${chainId}`);
-  }
-
-  const chain = chainId === 50312 ? somniaTestnet : undefined;
-  const rpcUrl = "https://api.infra.testnet.somnia.network";
-
-  if (!chain) {
-    throw new Error(`Unsupported chain ID: ${chainId}`);
-  }
-
   const publicClient = createPublicClient({
-    chain,
-    transport: http(rpcUrl),
+    chain: somniaTestnet,
+    transport: somniaTransport(),
   });
 
   const walletClient = createWalletClient({
     account,
-    chain,
-    transport: http(rpcUrl),
+    chain: somniaTestnet,
+    transport: somniaTransport(),
   });
 
   const nonce = await publicClient.getTransactionCount({

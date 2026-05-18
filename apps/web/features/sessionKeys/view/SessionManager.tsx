@@ -1,7 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Key, Trash2, Clock, Loader2, AlertTriangle, ExternalLink, Wallet } from 'lucide-react'
+import { useConnection } from 'wagmi'
+import { getAgentDelegatorAddress } from '@x402/contracts'
+import { Key, Trash2, Clock, Loader2, AlertTriangle, ExternalLink, Wallet, RefreshCw } from 'lucide-react'
+import { useSmartAccount } from '@/features/smartAccount/model/useSmartAccount'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSessionManagement } from '../model'
@@ -21,6 +24,7 @@ import { GenerateWalletModal } from './GenerateWalletModal'
  * If smart account is not enabled, shows prompt to enable it first.
  */
 export function SessionManager() {
+  const { chainId } = useConnection()
   const {
     sessions,
     isLoading: isLoadingSessions,
@@ -32,7 +36,17 @@ export function SessionManager() {
     grantSession,
     revokeSession,
   } = useSessionManagement()
+  const {
+    enable: upgradeSmartAccount,
+    isLoading: isUpgradingSmartAccount,
+    error: upgradeError,
+  } = useSmartAccount()
   const [showGenerateModal, setShowGenerateModal] = useState(false)
+
+  const expectedDelegator =
+    chainId && smartAccountStatus === 'incompatible'
+      ? getAgentDelegatorAddress(chainId)
+      : null
 
   // Check if there's already an active x402 session
   const hasActiveSession = useMemo(() => sessions.length > 0, [sessions])
@@ -74,21 +88,48 @@ export function SessionManager() {
                       Current: {delegatedTo}
                     </p>
                   )}
+                  {expectedDelegator && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 font-mono break-all">
+                      Required: {expectedDelegator}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
             <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
               <p className="font-medium text-sm">Solution</p>
               <p className="text-sm text-muted-foreground">
-                Generate a new wallet with the correct smart account enabled.
+                Update this wallet to the latest AgentDelegator (one EIP-7702 transaction), or switch
+                to a wallet you already upgraded. Generating a new wallet is optional.
               </p>
             </div>
             <Button
+              onClick={() => upgradeSmartAccount()}
+              disabled={isUpgradingSmartAccount}
+              className="w-full"
+            >
+              {isUpgradingSmartAccount ? (
+                <>
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                  Updating smart account…
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="size-4 mr-2" />
+                  Update smart account
+                </>
+              )}
+            </Button>
+            {upgradeError && (
+              <p className="text-sm text-destructive">{upgradeError}</p>
+            )}
+            <Button
+              variant="outline"
               onClick={() => setShowGenerateModal(true)}
               className="w-full"
             >
               <Wallet className="size-4 mr-2" />
-              Generate Smart Account Wallet
+              Generate new wallet instead
             </Button>
           </CardContent>
         </Card>

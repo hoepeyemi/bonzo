@@ -18,6 +18,9 @@ function deployerPrivateKeys(): string[] {
 // Only needed for `ignition deploy --verify` / `verify` tasks; can be empty for deploy-only.
 const somniaExplorerApiKey = process.env.SOMNIA_EXPLORER_API_KEY?.trim() ?? "";
 
+const somniaTestnetRpcUrl =
+  process.env.SOMNIA_RPC_URL?.trim() ?? "https://dream-rpc.somnia.network";
+
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
   solidity: {
@@ -51,7 +54,7 @@ export default defineConfig({
     somniaTestnet: {
       type: "http",
       chainType: "l1",
-      url: "https://api.infra.testnet.somnia.network",
+      url: somniaTestnetRpcUrl,
       chainId: 50312,
       accounts: deployerPrivateKeys(),
     },
