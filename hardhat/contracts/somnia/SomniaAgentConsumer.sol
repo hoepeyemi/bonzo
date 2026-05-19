@@ -92,8 +92,7 @@ contract SomniaAgentConsumer is IAgentRequesterHandler {
         require(msg.sender == address(this) || _isAgentFabricBridge(msg.sender), "not owner");
     }
 
-    function _isAgentFabricBridge(address caller) internal view virtual returns (bool) {
-        caller;
+    function _isAgentFabricBridge(address) internal view virtual returns (bool) {
         return false;
     }
 
@@ -103,9 +102,8 @@ contract SomniaAgentConsumer is IAgentRequesterHandler {
         uint256 requestId,
         Response[] memory responses,
         ResponseStatus status,
-        Request memory details
+        Request memory
     ) external virtual {
-        details;
         _finalizeResponse(requestId, responses, status, AgentResponseKind.Uint);
     }
 
@@ -113,9 +111,8 @@ contract SomniaAgentConsumer is IAgentRequesterHandler {
         uint256 requestId,
         Response[] memory responses,
         ResponseStatus status,
-        Request memory details
+        Request memory
     ) external virtual {
-        details;
         _finalizeResponse(requestId, responses, status, AgentResponseKind.String);
     }
 
@@ -123,9 +120,8 @@ contract SomniaAgentConsumer is IAgentRequesterHandler {
         uint256 requestId,
         Response[] memory responses,
         ResponseStatus status,
-        Request memory details
+        Request memory
     ) external virtual {
-        details;
         _finalizeResponse(requestId, responses, status, AgentResponseKind.Bytes);
     }
 
@@ -135,9 +131,8 @@ contract SomniaAgentConsumer is IAgentRequesterHandler {
         uint256 requestId,
         Response[] memory responses,
         ResponseStatus status,
-        Request memory details
+        Request memory
     ) external virtual {
-        details;
         _finalizeResponse(requestId, responses, status, AgentResponseKind.Uint);
     }
 
@@ -279,7 +274,7 @@ contract SomniaAgentConsumer is IAgentRequesterHandler {
         _registerRequest(requestId, kind);
     }
 
-    function _kindForHandler(bytes4 responseHandler) internal view returns (AgentResponseKind) {
+    function _kindForHandler(bytes4 responseHandler) internal pure returns (AgentResponseKind) {
         if (responseHandler == this.handleUintResponse.selector) return AgentResponseKind.Uint;
         if (responseHandler == this.handleStringResponse.selector) return AgentResponseKind.String;
         if (responseHandler == this.handleBytesResponse.selector) return AgentResponseKind.Bytes;

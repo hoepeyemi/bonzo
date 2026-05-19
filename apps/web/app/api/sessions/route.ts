@@ -173,7 +173,7 @@ export const GET = withAuth(async (user) => {
   })
 
   // Don't return encrypted private keys in list response
-  const sanitized = sessions.map(({ encryptedPrivateKey, ...rest }) => ({
+  const sanitized = sessions.map(({ encryptedPrivateKey: _encryptedPrivateKey, ...rest }) => ({
     ...rest,
     validAfter: rest.validAfter.toISOString(),
     validUntil: rest.validUntil.toISOString(),

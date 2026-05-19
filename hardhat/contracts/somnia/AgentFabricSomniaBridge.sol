@@ -66,7 +66,7 @@ contract AgentFabricSomniaBridge is SomniaAgentConsumer {
         uint256 requestId,
         Response[] memory responses,
         ResponseStatus status,
-        Request memory details
+        Request memory
     ) external override(SomniaAgentConsumer) {
         bytes32 label = _requestLabels[requestId];
         _finalizeResponse(requestId, responses, status, AgentResponseKind.Uint);

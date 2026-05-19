@@ -43,7 +43,33 @@ const USDC_EIP3009_ABI = [
     ],
     outputs: [],
   },
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
 ] as const
+
+/** OpenZeppelin ERC20InsufficientBalance(address,uint256,uint256) */
+const ERC20_INSUFFICIENT_BALANCE_SELECTOR = '0xe450d38c'
+
+function formatSettlementRevert(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = error.cause as { signature?: string; raw?: string } | undefined
+    const sig = cause?.signature ?? (error.message.includes(ERC20_INSUFFICIENT_BALANCE_SELECTOR)
+      ? ERC20_INSUFFICIENT_BALANCE_SELECTOR
+      : undefined)
+    if (sig === ERC20_INSUFFICIENT_BALANCE_SELECTOR) {
+      return (
+        'Insufficient x402 payment token balance on the payer smart account. ' +
+        'Mint STT (x402) to your EIP-7702 wallet address (Dashboard → Generate Smart Account → Mint), not only to your EOA.'
+      )
+    }
+  }
+  return error instanceof Error ? error.message : 'Settlement transaction failed'
+}
 
 /**
  * Floor gas estimate from calldata size (EIP-2028-style per-byte cost).
@@ -160,6 +186,23 @@ async function settleSmartAccountPayment(
   })
 
   try {
+    const balance = await publicClient.readContract({
+      address: payload.asset as Address,
+      abi: USDC_EIP3009_ABI,
+      functionName: 'balanceOf',
+      args: [payload.from as Address],
+    })
+
+    if (balance < amount) {
+      return {
+        success: false,
+        error:
+          `Insufficient x402 payment token balance: payer ${payload.from} has ${balance.toString()} ` +
+          `but payment requires ${amount.toString()} (smallest units). ` +
+          'Mint STT (x402) to your smart account wallet, then retry.',
+      }
+    }
+
     // Execute transferWithAuthorization directly
     // Note: For hackathon, we send full amount to recipient
     // Fee collection would be done in a separate step or via a splitter contract
@@ -229,7 +272,7 @@ async function settleSmartAccountPayment(
     console.error('[Facilitator] Smart account settlement failed:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Settlement transaction failed',
+      error: formatSettlementRevert(error),
     }
   }
 }

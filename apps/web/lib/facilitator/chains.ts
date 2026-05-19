@@ -5,9 +5,9 @@ import {
   DEFAULT_CHAIN_ID,
   getNetworkFromChainId as sharedGetNetworkFromChainId,
   parseChainId as sharedParseChainId,
-  getUsdceAddress as sharedGetUsdceAddress,
   isSupportedChain,
 } from '@x402/payment'
+import { getUsdceConfig } from '@/config/tokens'
 
 /** Default chain ID (Somnia Shannon testnet) */
 export const defaultChainId = DEFAULT_CHAIN_ID
@@ -21,12 +21,16 @@ function facilitatorUrlForChain(chainId: number): string | null {
 /**
  * Chain configurations for the facilitator
  */
+function usdceAddressForChain(chainId: number): Address {
+  return getUsdceConfig(chainId).address
+}
+
 export const chainConfigs: Record<number, ChainConfig> = {
   50312: {
     chainId: 50312,
     name: 'somnia-testnet',
     officialFacilitatorUrl: facilitatorUrlForChain(50312),
-    usdcAddress: SHARED_CHAIN_CONFIGS[50312].usdce.address,
+    usdcAddress: usdceAddressForChain(50312),
     rpcUrl: SHARED_CHAIN_CONFIGS[50312].rpcUrl,
   },
 }
@@ -56,10 +60,11 @@ export function getNetworkFromChainId(chainId: number): string {
 }
 
 /**
- * Get STT payment token address for a chain
+ * Get STT payment token address for a chain.
+ * Uses NEXT_PUBLIC_USDCE_ADDRESS on Somnia when set (must match session grant scopes).
  */
 export function getUsdceAddress(chainId: number = defaultChainId): Address {
-  return sharedGetUsdceAddress(chainId)
+  return getUsdceConfig(chainId).address
 }
 
 /**

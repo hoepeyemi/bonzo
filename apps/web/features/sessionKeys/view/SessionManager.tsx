@@ -9,6 +9,7 @@ import { format } from 'date-fns'
 import { ScopesSummaryBadges } from './ScopeApprovalCard'
 import { deserializeScope, type SerializedSessionScope } from '@/lib/sessionKeys/types'
 import { GenerateWalletModal } from './GenerateWalletModal'
+import { X402FundSection } from './X402FundSection'
 
 /**
  * Session management component
@@ -232,6 +233,8 @@ export function SessionManager() {
             ))}
           </div>
         )}
+
+        <X402FundSection />
       </CardContent>
     </Card>
   )
