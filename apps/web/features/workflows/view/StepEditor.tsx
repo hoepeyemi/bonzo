@@ -55,7 +55,7 @@ export function StepEditor({ stepIndex, step }: StepEditorProps) {
         </Field>
 
         <Field>
-          <FieldLabel>Output Key</FieldLabel>
+          <FieldLabel>Output Key <span className="text-muted-foreground font-normal">(optional)</span></FieldLabel>
           <FieldDescription>Key to store step result under $.steps.*</FieldDescription>
           <Input
             placeholder="stepResult"
@@ -97,6 +97,8 @@ function HttpStepConfig({
   step: WorkflowStepForm
   updateStep: (index: number, field: keyof WorkflowStepForm, value: unknown) => void
 }) {
+  const httpMethod = step.httpMethod || 'GET'
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -116,8 +118,13 @@ function HttpStepConfig({
         <Field>
           <FieldLabel>HTTP Method</FieldLabel>
           <Select
-            value={step.httpMethod || 'GET'}
-            onValueChange={(value) => updateStep(stepIndex, 'httpMethod', value)}
+            value={httpMethod}
+            onValueChange={(value) => {
+              updateStep(stepIndex, 'httpMethod', value)
+              if (value === 'GET') {
+                updateStep(stepIndex, 'httpBodyMapping', '')
+              }
+            }}
           >
             <SelectTrigger>
               <SelectValue />
@@ -142,26 +149,34 @@ function HttpStepConfig({
         />
       </Field>
 
-      <Field>
-        <FieldLabel>
-          Body Mapping
-          <span className="text-muted-foreground font-normal"> (JSON)</span>
-        </FieldLabel>
-        <FieldDescription>
-          Map input variables to request body. Use $.input.varName for substitution.
-        </FieldDescription>
-        <Textarea
-          placeholder={`{
+      {httpMethod === 'POST' ? (
+        <Field>
+          <FieldLabel>
+            Body Mapping
+            <span className="text-muted-foreground font-normal"> (JSON, optional)</span>
+          </FieldLabel>
+          <FieldDescription>
+            Map input variables to request body. Use $.input.varName for substitution. Leave empty if
+            the proxy defines its own body template.
+          </FieldDescription>
+          <Textarea
+            placeholder={`{
   "tokenIn": "$.input.tokenIn",
   "amount": "$.input.amount",
   "userAddress": "$.wallet"
 }`}
-          value={step.httpBodyMapping || ''}
-          onChange={(e) => updateStep(stepIndex, 'httpBodyMapping', e.target.value)}
-          rows={6}
-          className="font-mono text-sm"
-        />
-      </Field>
+            value={step.httpBodyMapping || ''}
+            onChange={(e) => updateStep(stepIndex, 'httpBodyMapping', e.target.value)}
+            rows={6}
+            className="font-mono text-sm"
+          />
+        </Field>
+      ) : (
+        <p className="text-sm text-muted-foreground rounded-md border bg-muted/30 px-3 py-2">
+          <strong>GET</strong> steps do not use a body. CoinGecko and other GET proxies need only Proxy ID
+          or URL — no body mapping.
+        </p>
+      )}
     </div>
   )
 }

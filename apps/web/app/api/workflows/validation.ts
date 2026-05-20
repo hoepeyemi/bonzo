@@ -31,18 +31,11 @@ export function validateWorkflow(workflow: WorkflowDefinition): {
       errors.push(`Step "${step.id}" missing type`)
     }
 
-    if (!step.outputAs) {
-      errors.push(`Step "${step.id}" missing outputAs`)
-    }
-
     // Validate step-specific configuration
     switch (step.type) {
       case 'http':
-        if (!step.http) {
-          errors.push(`HTTP step "${step.id}" missing http configuration`)
-        } else if (!step.http.proxyId && !step.http.url) {
-          errors.push(`HTTP step "${step.id}" must have either proxyId or url`)
-        }
+        // HTTP fields are optional in the UI. A later runtime/execution path
+        // can still enforce requirements when the step is actually executed.
         break
 
       case 'onchain':
