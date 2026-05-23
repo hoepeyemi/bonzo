@@ -55,7 +55,7 @@ export function StepEditor({ stepIndex, step }: StepEditorProps) {
         </Field>
 
         <Field>
-          <FieldLabel>Output Key <span className="text-muted-foreground font-normal">(optional)</span></FieldLabel>
+          <FieldLabel>Output Key</FieldLabel>
           <FieldDescription>Key to store step result under $.steps.*</FieldDescription>
           <Input
             placeholder="stepResult"

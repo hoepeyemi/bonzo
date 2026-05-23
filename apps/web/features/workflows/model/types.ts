@@ -99,7 +99,7 @@ export function formToWorkflowDefinition(form: WorkflowFormValues): WorkflowDefi
       id: step.id,
       name: step.name,
       type: step.type,
-      outputAs: step.outputAs || step.id,
+      outputAs: step.outputAs,
     }
 
     if (step.type === 'http') {
