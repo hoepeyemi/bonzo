@@ -49,7 +49,7 @@ export function HowItWorksSection() {
         <ScrollAnimation animation="fade-up">
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold">
-              How AgentFabric works
+              How Bonzo AI works
             </h2>
           </div>
         </ScrollAnimation>

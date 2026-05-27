@@ -138,7 +138,7 @@ export function WorkflowTestPanel({ workflow }: { workflow: WorkflowDetail }) {
           ) : (
             <>
               <Play className="size-4 mr-2" />
-              Dry Run
+              Run Test
             </>
           )}
         </Button>
@@ -287,8 +287,8 @@ export function WorkflowTestPanel({ workflow }: { workflow: WorkflowDetail }) {
 
         {/* Help Text */}
         <div className="text-xs text-muted-foreground pt-4 border-t space-y-1">
-          <p><strong>Dry Run:</strong> Simulates workflow execution without making actual API calls or on-chain transactions.</p>
-          <p>HTTP steps will be validated but not executed. On-chain steps will show what calldata would be generated.</p>
+          <p><strong>Live Test:</strong> HTTP steps make real API calls and return actual data.</p>
+          <p>On-chain steps are simulated and show what calldata would be generated.</p>
         </div>
       </CardContent>
     </Card>

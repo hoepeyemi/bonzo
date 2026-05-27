@@ -1,5 +1,5 @@
 /**
- * Deploy AgentFabricSomniaBridge on Somnia testnet.
+ * Deploy Bonzo AISomniaBridge on Somnia testnet.
  *
  * Usage:
  *   JSON_API_AGENT_ID=<id from Agent Explorer> npx hardhat run scripts/deploy-somnia-agent-bridge.ts --network somniaTestnet
@@ -17,13 +17,13 @@ async function main() {
   const rewardPerAgent = process.env.SOMNIA_JSON_API_REWARD_PER_AGENT?.trim();
   const subcommitteeSize = process.env.SOMNIA_SUBCOMMITTEE_SIZE?.trim();
 
-  const bridge = await connection.viem.deployContract("AgentFabricSomniaBridge", [
+  const bridge = await connection.viem.deployContract("Bonzo AISomniaBridge", [
     BigInt(jsonApiAgentId),
     rewardPerAgent ? BigInt(rewardPerAgent) : 0n,
     subcommitteeSize ? BigInt(subcommitteeSize) : 0n,
   ]);
 
-  console.log("AgentFabricSomniaBridge deployed:", bridge.address);
+  console.log("Bonzo AISomniaBridge deployed:", bridge.address);
   console.log("SomniaAgents platform (testnet): 0x037Bb9C718F3f7fe5eCBDB0b600D607b52706776");
   console.log("");
   console.log("Add to apps/web .env:");

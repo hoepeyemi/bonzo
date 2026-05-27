@@ -101,7 +101,7 @@ export function useWorkflowTest(workflow: WorkflowDetail): UseWorkflowTestReturn
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           inputs,
-          dryRun: true,
+          dryRun: false,
         }),
       })
 

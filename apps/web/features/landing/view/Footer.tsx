@@ -41,7 +41,7 @@ export function Footer() {
 
           {/* Descriptor */}
           <p className="text-sm text-muted-foreground max-w-md">
-            AgentFabric — an agent-native x402 execution fabric for Somnia.
+            Bonzo AI — an agent-native x402 execution fabric for Somnia.
           </p>
         </div>
       </div>

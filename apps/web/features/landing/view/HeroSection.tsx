@@ -59,7 +59,7 @@ export function HeroSection() {
               className="text-lg text-muted-foreground max-w-xl animate-fade-in"
               style={{ animationDelay: '500ms', animationFillMode: 'both' }}
             >
-              AgentFabric is an agent-native x402 execution fabric that lets AI agents safely
+              Bonzo AI is an agent-native x402 execution fabric that lets AI agents safely
               interact with paid APIs and on-chain workflows on Somnia — without ever accessing
               a user&apos;s private keys.
             </p>
@@ -102,7 +102,7 @@ export function HeroSection() {
                 {/* Arrow down */}
                 <div className="w-px h-8 bg-gradient-to-b from-border to-primary/50" />
 
-                {/* AgentFabric Box - Permission Boundary */}
+                {/* Bonzo AI Box - Permission Boundary */}
                 <div className="relative p-8 rounded-2xl border-2 border-primary/30 bg-primary/5">
                   {/* Dashed boundary indicator */}
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-background border border-primary/30 text-xs text-primary font-medium">
@@ -114,7 +114,7 @@ export function HeroSection() {
                       <Layers className="size-8 text-primary" />
                     </div>
                     <div>
-                      <span className="text-lg font-semibold text-foreground block">AgentFabric</span>
+                      <span className="text-lg font-semibold text-foreground block">Bonzo AI</span>
                       <span className="text-sm text-muted-foreground">Scoped execution layer</span>
                     </div>
                   </div>

@@ -43,7 +43,7 @@ export const SOMNIA_AGENTS_PLATFORM_ADDRESS: Record<number, Address> = {
 } as const
 
 /**
- * AgentFabricSomniaBridge — deploy via hardhat/scripts/deploy-somnia-agent-bridge.ts
+ * Bonzo AISomniaBridge — deploy via hardhat/scripts/deploy-somnia-agent-bridge.ts
  */
 export const SOMNIA_AGENT_BRIDGE_ADDRESS: Record<number, Address> = {
   50312: '0xcaa3228c7c8f82581228cba5867f4a84ae0f5a80',

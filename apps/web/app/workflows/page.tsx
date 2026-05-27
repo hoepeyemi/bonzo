@@ -4,8 +4,8 @@ import { Loader2 } from 'lucide-react'
 import { PublicWorkflowsView } from '@/features/workflows'
 
 export const metadata: Metadata = {
-  title: 'Workflows | AgentFabric',
-  description: 'Discover reusable workflow templates for AI agents',
+  title: 'Workflows | Bonzo AI',
+  description: 'Discover reusable workflow templates for Bonzo AI',
 }
 
 function WorkflowsLoading() {

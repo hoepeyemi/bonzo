@@ -31,7 +31,7 @@ export function WhySomniaSection() {
                 </div>
                 <CardTitle className="text-xl">Built for Somnia</CardTitle>
                 <CardDescription className="text-base leading-relaxed">
-                  AgentFabric targets Somnia Shannon testnet and x402-style paid APIs, enabling
+                  Bonzo AI targets Somnia Shannon testnet and x402-style paid APIs, enabling
                   agents to execute workflows with stablecoin payments and on-chain automation.
                 </CardDescription>
               </CardHeader>

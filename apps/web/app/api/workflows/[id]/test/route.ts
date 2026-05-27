@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, workflowTemplates } from '@/lib/db'
+import { db, workflowTemplates, apiProxies } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { withAuth } from '@/lib/auth'
 import type { WorkflowDefinition, WorkflowStep, OnchainOperation } from '@/lib/db/schema'
 import { encodeFunctionData, parseAbiItem } from 'viem'
+import { decryptHybrid, type HybridEncryptedData } from '@/lib/crypto/encryption'
+import {
+  substituteVariables,
+  type VariableDefinition,
+} from '@/features/proxy/model/variables'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -389,6 +394,240 @@ function runDryTest(
   }
 }
 
+// ============================================================================
+// Live Execution
+// ============================================================================
+
+const LIVE_TIMEOUT_MS = 30_000
+
+/**
+ * Execute an HTTP step live by fetching the proxy's targetUrl directly.
+ * Bypasses x402 payment since this is a first-party test by the workflow owner.
+ */
+async function executeHttpStepLive(step: WorkflowStep, context: {
+  input: Record<string, unknown>
+  steps: Record<string, { output: unknown }>
+  wallet: string
+  chainId: number
+}): Promise<{ output: unknown; error?: string }> {
+  if (!step.http) {
+    return { output: null, error: 'HTTP configuration missing' }
+  }
+
+  try {
+    let targetUrl: string | undefined
+    let method: string = step.http.method || 'GET'
+    const headers = new Headers()
+    headers.set('accept', 'application/json')
+
+    // If step references a proxy, look it up to get targetUrl + decrypted headers
+    if (step.http.proxyId) {
+      // proxyId may be a UUID, slug, or display name — try each
+      const proxyRef = step.http.proxyId
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(proxyRef)
+      let proxy = isUuid
+        ? await db.query.apiProxies.findFirst({ where: eq(apiProxies.id, proxyRef) })
+        : null
+
+      if (!proxy) {
+        proxy = await db.query.apiProxies.findFirst({ where: eq(apiProxies.slug, proxyRef) })
+      }
+      if (!proxy) {
+        proxy = await db.query.apiProxies.findFirst({ where: eq(apiProxies.name, proxyRef) })
+      }
+
+      if (!proxy) {
+        return { output: null, error: `Proxy not found: ${step.http.proxyId}` }
+      }
+
+      targetUrl = proxy.targetUrl
+      method = proxy.httpMethod || method
+      headers.set('content-type', proxy.contentType ?? 'application/json')
+
+      // Decrypt and apply stored headers (e.g. API keys)
+      if (proxy.encryptedHeaders) {
+        try {
+          const decrypted = decryptHybrid(proxy.encryptedHeaders as HybridEncryptedData)
+          for (const [key, value] of Object.entries(decrypted)) {
+            headers.set(key, value)
+          }
+        } catch (err) {
+          return { output: null, error: `Failed to decrypt proxy headers: ${err instanceof Error ? err.message : 'Unknown'}` }
+        }
+      }
+
+      // Build merged variables: proxy schema defaults + workflow inputs
+      const variablesSchema = (proxy.variablesSchema as VariableDefinition[]) ?? []
+      const mergedVars: Record<string, unknown> = {}
+      // Apply proxy schema defaults first
+      for (const def of variablesSchema) {
+        if (def.default !== undefined) {
+          mergedVars[def.name] = def.default
+        }
+      }
+      // Override with workflow inputs
+      for (const [key, value] of Object.entries(context.input)) {
+        mergedVars[key] = value
+      }
+
+      // Substitute variables in the targetUrl itself (may contain {{variable}} placeholders)
+      targetUrl = substituteVariables(targetUrl, mergedVars, variablesSchema)
+
+      // Also append queryParamsTemplate if present
+      if (proxy.queryParamsTemplate) {
+        const substituted = substituteVariables(
+          proxy.queryParamsTemplate,
+          mergedVars,
+          variablesSchema
+        )
+        const sep = targetUrl.includes('?') ? '&' : '?'
+        targetUrl = `${targetUrl}${sep}${substituted}`
+      }
+    } else if (step.http.url) {
+      targetUrl = step.http.url
+    }
+
+    if (!targetUrl) {
+      return { output: null, error: 'No target URL configured (no proxyId or url)' }
+    }
+
+    // Merge any additional step-level headers
+    if (step.http.headers) {
+      for (const [key, value] of Object.entries(step.http.headers)) {
+        headers.set(key, value)
+      }
+    }
+
+    // Resolve body mapping
+    let body: string | null = null
+    if (method !== 'GET' && step.http.bodyMapping) {
+      const resolvedBody = resolveMapping(step.http.bodyMapping, context)
+      body = JSON.stringify(resolvedBody)
+    }
+
+    // Make the actual HTTP request
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), LIVE_TIMEOUT_MS)
+
+    try {
+      const response = await fetch(targetUrl, {
+        method,
+        headers,
+        body,
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      const contentType = response.headers.get('content-type') || ''
+      let data: unknown
+
+      if (contentType.includes('application/json')) {
+        data = await response.json()
+      } else {
+        data = await response.text()
+      }
+
+      if (!response.ok) {
+        return {
+          output: data,
+          error: `HTTP ${response.status}: ${response.statusText}`,
+        }
+      }
+
+      return { output: data }
+    } catch (fetchErr) {
+      clearTimeout(timeoutId)
+      if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+        return { output: null, error: 'Request timed out' }
+      }
+      return { output: null, error: `Fetch failed: ${fetchErr instanceof Error ? fetchErr.message : 'Unknown'}` }
+    }
+  } catch (err) {
+    return { output: null, error: `Unexpected error: ${err instanceof Error ? err.message : 'Unknown'}` }
+  }
+}
+
+/**
+ * Run a live test of the workflow — HTTP steps are actually executed.
+ * On-chain steps are still simulated (no wallet available server-side).
+ */
+async function runLiveTest(
+  workflow: WorkflowDefinition,
+  inputs: Record<string, unknown>,
+  wallet: string
+): Promise<TestResult> {
+  const context = {
+    input: inputs,
+    steps: {} as Record<string, { output: unknown }>,
+    wallet,
+    chainId: 50312,
+  }
+
+  const stepResults: StepResult[] = []
+
+  for (const step of workflow.steps) {
+    const startTime = Date.now()
+    let result: { output: unknown; error?: string }
+
+    try {
+      switch (step.type) {
+        case 'http':
+          result = await executeHttpStepLive(step, context)
+          break
+        case 'onchain':
+        case 'onchain_batch':
+          // On-chain steps are still simulated in test mode
+          result = simulateOnchainStep(step, context)
+          break
+        default:
+          result = { output: null, error: `Unknown step type: ${step.type}` }
+      }
+    } catch (error) {
+      result = {
+        output: null,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+
+    const duration = Date.now() - startTime
+
+    // Store output for subsequent steps
+    context.steps[step.outputAs] = { output: result.output }
+
+    stepResults.push({
+      stepId: step.id,
+      stepName: step.name,
+      status: result.error ? 'error' : 'success',
+      output: result.output as StepResult['output'],
+      error: result.error,
+      duration,
+    })
+
+    // Stop on error
+    if (result.error) {
+      break
+    }
+  }
+
+  // Resolve output mapping
+  let output: Record<string, unknown> | undefined
+  const hasError = stepResults.some(s => s.status === 'error')
+
+  if (!hasError && workflow.outputMapping) {
+    output = {}
+    for (const [key, expression] of Object.entries(workflow.outputMapping)) {
+      output[key] = resolveExpression(expression, context)
+    }
+  }
+
+  return {
+    success: !hasError,
+    steps: stepResults,
+    output,
+    error: hasError ? stepResults.find(s => s.error)?.error : undefined,
+  }
+}
+
 /**
  * POST /api/workflows/[id]/test
  *
@@ -397,7 +636,7 @@ function runDryTest(
 export const POST = withAuth(async (user, request, context) => {
   const { id } = await (context as RouteParams).params
   const body = await request.json()
-  const { inputs, dryRun = true } = body
+  const { inputs, dryRun = false } = body
 
   // Fetch the workflow
   const workflow = await db.query.workflowTemplates.findFirst({
@@ -411,16 +650,18 @@ export const POST = withAuth(async (user, request, context) => {
     return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
   }
 
-  // Only dry run is supported for now
-  if (!dryRun) {
-    return NextResponse.json(
-      { error: 'Live execution not yet supported. Use dryRun: true' },
-      { status: 400 }
+  if (dryRun) {
+    // Dry run — simulate all steps
+    const result = runDryTest(
+      workflow.workflowDefinition,
+      inputs || {},
+      user.walletAddress
     )
+    return NextResponse.json(result)
   }
 
-  // Run the test
-  const result = runDryTest(
+  // Live execution — HTTP steps are actually called
+  const result = await runLiveTest(
     workflow.workflowDefinition,
     inputs || {},
     user.walletAddress

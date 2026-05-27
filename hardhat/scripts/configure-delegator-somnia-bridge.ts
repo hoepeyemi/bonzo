@@ -1,5 +1,5 @@
 /**
- * Link AgentDelegator (via self-call) to the deployed AgentFabricSomniaBridge.
+ * Link AgentDelegator (via self-call) to the deployed Bonzo AISomniaBridge.
  *
  * Prerequisite: smart account enabled (EIP-7702). Run enable-smart-account.ts first.
  *
@@ -14,7 +14,7 @@ import { privateKeyToAccount } from "viem/accounts";
 async function main() {
   const bridge = process.env.SOMNIA_AGENT_BRIDGE?.trim() as Address | undefined;
   if (!bridge) {
-    console.error("Set SOMNIA_AGENT_BRIDGE to your AgentFabricSomniaBridge address");
+    console.error("Set SOMNIA_AGENT_BRIDGE to your Bonzo AISomniaBridge address");
     process.exit(1);
   }
 
