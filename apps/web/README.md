@@ -1,6 +1,6 @@
-# x402 Marketplace Web App
+# Bonzo Web App
 
-Next.js 16 frontend and API backend for the x402 Payment Marketplace. Enables developers to list APIs and monetize them with cryptocurrency payments on Somnia (Shannon testnet) using the x402 payment protocol.
+Next.js 16 frontend and API backend for the Bonzo. Enables developers to list APIs and monetize them with cryptocurrency payments on Somnia (Shannon testnet) using the x402 payment protocol.
 
 ## Features
 

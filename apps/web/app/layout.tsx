@@ -21,8 +21,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bonzo AI",
-  description: "Bonzo AI is a platform for AI agents to safely interact with paid APIs and on-chain workflows.",
+  title: "Bonzo",
+  description: "Bonzo is a platform for AI agents to safely interact with paid APIs and on-chain workflows.",
 };
 
 export default async function RootLayout({

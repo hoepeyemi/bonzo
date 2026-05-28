@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {IAgentRequester, IAgentRequesterHandler, Response, ResponseStatus, Request, ConsensusType} from "../interfaces/somnia/ISomniaAgents.sol";
 import {IJsonApiAgent} from "../interfaces/somnia/IJsonApiAgent.sol";
 
-/// @title Somnia Agent consumer for AgentFabric
+/// @title Somnia Agent consumer for Bonzo
 /// @notice Invokes Somnia Agents via the platform contract and handles async callbacks.
 /// @dev https://metaversal.gitbook.io/agents/s8KLL5NzoS6LwJVIQCiT/invoking-agents/from-solidity
 contract SomniaAgentConsumer is IAgentRequesterHandler {
@@ -67,7 +67,7 @@ contract SomniaAgentConsumer is IAgentRequesterHandler {
         subcommitteeSize = subcommitteeSize_ == 0 ? 3 : subcommitteeSize_;
     }
 
-    /// @notice Update JSON API per-validator reward (owner: AgentFabricSomniaBridge / deployer).
+    /// @notice Update JSON API per-validator reward (owner: BonzoSomniaBridge / deployer).
     function setJsonApiRewardPerAgent(uint256 rewardPerAgent) external virtual {
         _requireBridgeOwner();
         emit JsonApiRewardUpdated(jsonApiRewardPerAgent, rewardPerAgent);
@@ -89,10 +89,10 @@ contract SomniaAgentConsumer is IAgentRequesterHandler {
 
     function _requireBridgeOwner() internal view {
         // Allow the bridge child contract or direct consumer owner pattern via self-call from bridge.
-        require(msg.sender == address(this) || _isAgentFabricBridge(msg.sender), "not owner");
+        require(msg.sender == address(this) || _isBonzoBridge(msg.sender), "not owner");
     }
 
-    function _isAgentFabricBridge(address) internal view virtual returns (bool) {
+    function _isBonzoBridge(address) internal view virtual returns (bool) {
         return false;
     }
 

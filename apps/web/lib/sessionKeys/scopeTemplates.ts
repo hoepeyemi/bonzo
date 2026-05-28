@@ -141,9 +141,9 @@ export const SCOPE_TEMPLATES = {
    * Target contracts are enforced on-chain for native token
    */
   /**
-   * Somnia Agents via Bonzo AISomniaBridge (on-chain oracle / JSON API fetches).
+   * Somnia Agents via BonzoSomniaBridge (on-chain oracle / JSON API fetches).
    * Path A: session key calls the bridge directly (allowlisted target).
-   * Path B: optional delegator forward via invokeSomniaLabeledFetch after redeploy — see docs/somnia-agents.md.
+   * Path B: delegator forward via invokeSomniaLabeledFetch through the active AgentDelegator — see docs/somnia-agents.md.
    */
   'execute:somnia-agents': (chainId: number): ExecuteScope | null => {
     const { bridgeAddress } = getSomniaAgentsConfig(chainId)
@@ -159,7 +159,7 @@ export const SCOPE_TEMPLATES = {
       targets: [
         {
           address: bridgeAddress,
-          name: 'Bonzo AISomniaBridge',
+          name: 'BonzoSomniaBridge',
           selectors: [
             {
               selector: SOMNIA_BRIDGE_SELECTORS.requestLabeledFetch,
@@ -251,7 +251,7 @@ export function getAvailableScopeTemplates(chainId: number): ScopeTemplateInfo[]
     {
       id: 'execute:somnia-agents',
       name: 'Somnia Agents',
-      description: 'Invoke Somnia Agents for verified off-chain data via the Bonzo AISomniaBridge',
+      description: 'Invoke Somnia Agents for verified off-chain data via the BonzoSomniaBridge',
       type: 'execute',
       budgetEnforceable: true,
       requiresParams: false,

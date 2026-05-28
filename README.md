@@ -1,15 +1,15 @@
-# AgentFabric
+# Bonzo
 
 **Agents with limits.**
 
-AgentFabric is an agent-native x402 execution fabric that enables AI agents to safely interact with paid APIs and on-chain workflows on Somnia (Shannon testnet and compatible EVM networks), using scoped, programmable permissions.
+Bonzo is an agent-native x402 execution fabric that enables AI agents to safely interact with paid APIs and on-chain workflows on Somnia (Shannon testnet and compatible EVM networks), using scoped, programmable permissions.
 
 Agents never access a user's primary private key.
 Instead, they operate via session keys with explicit, enforceable limits — such as which protocol, which asset, and how much value they are allowed to use.
 
 ---
 
-## What AgentFabric Enables
+## What Bonzo Enables
 
 - AI agents that can execute on-chain actions safely
 - x402-native APIs with usage-based settlement
@@ -17,11 +17,11 @@ Instead, they operate via session keys with explicit, enforceable limits — suc
 - MCP servers for agent discovery and interaction
 - Bounded autonomy via scoped session permissions
 
-AgentFabric turns APIs and workflows into agent-readable economic primitives, without sacrificing custody or control.
+Bonzo turns APIs and workflows into agent-readable economic primitives, without sacrificing custody or control.
 
 ---
 
-## Why AgentFabric Exists
+## Why Bonzo Exists
 
 AI agents are becoming capable of real financial decision-making — but today's execution models are broken:
 
@@ -30,7 +30,7 @@ AI agents are becoming capable of real financial decision-making — but today's
 
 This tradeoff blocks adoption of agentic finance.
 
-AgentFabric solves this by introducing a permissioned execution layer:
+Bonzo solves this by introducing a permissioned execution layer:
 
 - autonomy without custody
 - composability without danger
@@ -45,9 +45,9 @@ flowchart LR
     NOTE1["Unlimited permissions\nHigh blast radius\nUnsafe for automation"]:::warn
   end
 
-  subgraph AF["AgentFabric Model (Bounded Autonomy)"]
+  subgraph AF["Bonzo Model (Bounded Autonomy)"]
     A2["AI Agent"] --> S2["Scoped Session Key\n(least privilege)"]
-    S2 --> F2["AgentFabric\nPermission Enforcement"]:::good
+    S2 --> F2["Bonzo\nPermission Enforcement"]:::good
     F2 --> API2["x402 APIs\nPaid, usage-based"]
     F2 --> C2["EVM (e.g. Somnia)\nSmart Account + Protocols"]
     P2["Allowed protocol\nAllowed asset\nMax value\nAllowed methods"]:::good
@@ -62,7 +62,7 @@ flowchart LR
 
 ## Core Architecture
 
-AgentFabric is built around five core primitives:
+Bonzo is built around five core primitives:
 
 ### 1. Smart Account Upgrade
 
@@ -171,7 +171,7 @@ Selected APIs and workflows are exposed as MCP servers, enabling:
 ```mermaid
 flowchart LR
   AG["AI Agent\n(ChatGPT / Claude / Custom Agent)"] --> MCP["MCP Server\nAgent-facing execution surface\nDiscoverable capabilities"]
-  MCP --> AF["AgentFabric\nx402 Execution Fabric\nAPI Proxies + Workflow Engine\nPermission Enforcement"]:::good
+  MCP --> AF["Bonzo\nx402 Execution Fabric\nAPI Proxies + Workflow Engine\nPermission Enforcement"]:::good
   AF --> X402["x402 APIs\nPaid, usage-based settlement"]
   AF --> CR["EVM\nSmart account + DeFi protocols"]:::good
 
@@ -186,11 +186,11 @@ flowchart LR
 
 ## Demo Scenario (Hackathon Highlight)
 
-In the demo, AgentFabric shows an AI agent performing the following task:
+In the demo, Bonzo shows an AI agent performing the following task:
 
 > "Find the top trending token on Somnia testnet today and swap a small amount of STT into it."
 
-Using AgentFabric, the agent:
+Using Bonzo, the agent:
 
 1. Queries a paid x402 API for trending tokens
 2. Selects the top result
@@ -204,7 +204,7 @@ All actions are executed within scoped permissions.
 
 ## Built for x402 & EVM
 
-AgentFabric is:
+Bonzo is:
 
 - deployed on EVM-compatible networks (default dev target: Somnia Shannon testnet)
 - designed for x402-style programmatic payments
@@ -227,7 +227,7 @@ This makes the target chain a safe, first-class execution environment for AI age
 
 ## Hackathon Tracks
 
-AgentFabric qualifies for:
+Bonzo qualifies for:
 
 - Main Track — x402 Applications
 - x402 Agentic Finance / Payment Track
@@ -244,7 +244,7 @@ MIT
 
 ## Links
 
-- Website: https://agentfabric.tools
+- Website: https://bonzo.tools
 - Demo: https://www.youtube.com/watch?v=xfvH6TqvJd8
 - Hackathon Submission: https://dorahacks.io/buidl/38376
 

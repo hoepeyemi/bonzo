@@ -1,7 +1,7 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 /**
- * Deploy Bonzo AISomniaBridge.
+ * Deploy BonzoSomniaBridge.
  *
  * Set JSON_API_AGENT_ID in the environment to the agent ID from:
  * https://agents.testnet.somnia.network
@@ -15,7 +15,7 @@ const SomniaAgentBridgeModule = buildModule("SomniaAgentBridgeModule", (m) => {
   const jsonApiRewardPerAgent = m.getParameter("jsonApiRewardPerAgent", 0);
   const subcommitteeSize = m.getParameter("subcommitteeSize", 0);
 
-  const bridge = m.contract("Bonzo AISomniaBridge", [
+  const bridge = m.contract("BonzoSomniaBridge", [
     jsonApiAgentId,
     jsonApiRewardPerAgent,
     subcommitteeSize,

@@ -11,7 +11,7 @@ import {AbstractSigner} from "@openzeppelin/contracts/utils/cryptography/signers
 import {SignerERC7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerERC7702.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import {IAgentFabricSomniaBridge} from "./interfaces/somnia/IAgentFabricSomniaBridge.sol";
+import {IBonzoSomniaBridge} from "./interfaces/somnia/IBonzoSomniaBridge.sol";
 
 contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     using ECDSA for bytes32;
@@ -625,7 +625,7 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     // Somnia Agents (separate storage slot)
     // ========================
 
-    /// @notice Configure the AgentFabricSomniaBridge used by this smart account.
+    /// @notice Configure the BonzoSomniaBridge used by this smart account.
     /// @dev Callable only via self-call (same pattern as grantSession).
     function setSomniaAgentBridge(address bridge) external {
         require(msg.sender == address(this), "Only owner");
@@ -648,7 +648,7 @@ contract AgentDelegator is Account, SignerERC7702, ERC7821, IERC1271 {
     ) external payable returns (uint256 requestId) {
         address bridge = _getSomniaConfig().agentBridge;
         if (bridge == address(0)) revert SomniaBridgeNotConfigured();
-        return IAgentFabricSomniaBridge(bridge).requestLabeledFetch{value: msg.value}(
+        return IBonzoSomniaBridge(bridge).requestLabeledFetch{value: msg.value}(
             label,
             url,
             jsonSelector,

@@ -3,14 +3,14 @@
 ## Somnia Agents integration
 
 > **Agents ≠ payments.** Somnia Agents fetch off-chain data on-chain; x402 uses STT on chain 50312 separately.  
-> **Path A (live):** call `AgentFabricSomniaBridge` directly. **Path B:** redeploy AgentDelegator — see [`docs/somnia-agents.md`](../docs/somnia-agents.md).
+> **Path A (live):** call `BonzoSomniaBridge` directly. **Path B (live):** forward through `AgentDelegator` — see [`docs/somnia-agents.md`](../docs/somnia-agents.md).
 
-AgentFabric can invoke [Somnia Agents](https://metaversal.gitbook.io/agents/s8KLL5NzoS6LwJVIQCiT/invoking-agents/quickstart) from Solidity for async off-chain data (JSON API, oracles, etc.).
+Bonzo can invoke [Somnia Agents](https://metaversal.gitbook.io/agents/s8KLL5NzoS6LwJVIQCiT/invoking-agents/quickstart) from Solidity for async off-chain data (JSON API, oracles, etc.).
 
 | Contract | Role |
 | --- | --- |
 | `SomniaAgents` platform | `0x037Bb9C718F3f7fe5eCBDB0b600D607b52706776` (testnet) |
-| `AgentFabricSomniaBridge` | Deploy per network; wraps `createRequest` + callbacks |
+| `BonzoSomniaBridge` | Deploy per network; wraps `createRequest` + callbacks |
 | `SomniaAgentConsumer` | Base consumer (JSON API helper + generic `requestAgent`) |
 
 **Deploy bridge (testnet):**
@@ -24,7 +24,7 @@ Add `NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS` and `NEXT_PUBLIC_JSON_API_AGENT_ID
 
 Session keys can allowlist the bridge address in `allowedTargets` to call `requestLabeledFetch` from workflows.
 
-**AgentDelegator integration — Path B only** (not on deployed `0x399…` until redeploy + re-7702):
+**AgentDelegator integration — Path B** (live on `0x0b8bC9dd22D1D69F820B724fe10Cb401A1300BE9`):
 
 - `setSomniaAgentBridge(address)` — owner self-call
 - `grantSessionWithSomniaBridge(...)` — auto-appends bridge to `allowedTargets`

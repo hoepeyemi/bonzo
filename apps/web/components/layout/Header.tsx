@@ -26,9 +26,8 @@ export function Header() {
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-1 font-semibold text-xl">
+          <Link href="/" className="font-semibold text-xl">
             <span className="text-foreground">Bonzo</span>
-            <span className="text-primary font-bold">Fabric</span>
           </Link>
 
           {/* Navigation */}

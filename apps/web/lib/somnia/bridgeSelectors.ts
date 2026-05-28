@@ -2,7 +2,7 @@ import type { Hex } from 'viem'
 import { toFunctionSelector } from 'viem'
 
 /**
- * Selectors for Bonzo AISomniaBridge — use in session execute scopes.
+ * Selectors for BonzoSomniaBridge — use in session execute scopes.
  */
 export const SOMNIA_BRIDGE_SELECTORS = {
   requestLabeledFetch: toFunctionSelector(

@@ -5,9 +5,9 @@ import {SomniaAgentConsumer} from "./SomniaAgentConsumer.sol";
 import {SomniaAgentsPlatform} from "./SomniaAgentsPlatform.sol";
 import {Response, ResponseStatus, Request} from "../interfaces/somnia/ISomniaAgents.sol";
 
-/// @title AgentFabric ↔ Somnia Agents bridge
+/// @title Bonzo Somnia Agents bridge
 /// @notice On-chain entrypoint for workflows; configurable rewards; typed agent callbacks.
-contract AgentFabricSomniaBridge is SomniaAgentConsumer {
+contract BonzoSomniaBridge is SomniaAgentConsumer {
     address public owner;
 
     mapping(uint256 => bytes32) private _requestLabels;
@@ -47,7 +47,7 @@ contract AgentFabricSomniaBridge is SomniaAgentConsumer {
         owner = newOwner;
     }
 
-    function _isAgentFabricBridge(address caller) internal view override returns (bool) {
+    function _isBonzoBridge(address caller) internal view override returns (bool) {
         return caller == owner;
     }
 

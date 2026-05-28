@@ -1,9 +1,9 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
-const AgentDelegatorModule = buildModule("AgentDelegatorModule", (m) => {
+const AgentDelegatorV2Module = buildModule("AgentDelegatorV2Module", (m) => {
   const agentDelegator = m.contract("AgentDelegator");
 
   return { agentDelegator };
 });
 
-export default AgentDelegatorModule;
+export default AgentDelegatorV2Module;

@@ -10,8 +10,8 @@ import type { Address } from 'viem'
  * AgentDelegator contract addresses by chain ID
  */
 export const AGENT_DELEGATOR_ADDRESS: Record<number, Address> = {
-  // Somnia Shannon testnet — Path A delegator (no invokeSomniaLabeledFetch; use bridge directly)
-  50312: '0x399A377CAAE39Ef521782197C3A4c7159a7274cC',
+  // Somnia Shannon testnet — current AgentDelegator implementation for the smart account
+  50312: '0x0b8bC9dd22D1D69F820B724fe10Cb401A1300BE9',
 } as const
 
 /**
@@ -43,7 +43,7 @@ export const SOMNIA_AGENTS_PLATFORM_ADDRESS: Record<number, Address> = {
 } as const
 
 /**
- * Bonzo AISomniaBridge — deploy via hardhat/scripts/deploy-somnia-agent-bridge.ts
+ * BonzoSomniaBridge — deploy via hardhat/scripts/deploy-somnia-agent-bridge.ts
  */
 export const SOMNIA_AGENT_BRIDGE_ADDRESS: Record<number, Address> = {
   50312: '0xcaa3228c7c8f82581228cba5867f4a84ae0f5a80',

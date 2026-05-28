@@ -400,6 +400,54 @@ function runDryTest(
 
 const LIVE_TIMEOUT_MS = 30_000
 
+function getHttpErrorDetail(data: unknown): string | undefined {
+  if (typeof data === 'string') {
+    const trimmed = data.trim()
+    if (!trimmed) return undefined
+
+    try {
+      return getHttpErrorDetail(JSON.parse(trimmed)) ?? trimmed.slice(0, 500)
+    } catch {
+      return trimmed.slice(0, 500)
+    }
+  }
+
+  if (!data || typeof data !== 'object') {
+    return undefined
+  }
+
+  const body = data as Record<string, unknown>
+  const candidates = [
+    body.error,
+    body.message,
+    body.status,
+    body.detail,
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim()
+    }
+    if (candidate && typeof candidate === 'object') {
+      const nested = getHttpErrorDetail(candidate)
+      if (nested) return nested
+    }
+  }
+
+  return undefined
+}
+
+function getUnresolvedTemplateVariables(value: string): string[] {
+  const variables = new Set<string>()
+  const matches = value.matchAll(/\{\{(\w+)\}\}/g)
+
+  for (const match of matches) {
+    variables.add(match[1])
+  }
+
+  return [...variables]
+}
+
 /**
  * Execute an HTTP step live by fetching the proxy's targetUrl directly.
  * Bypasses x402 payment since this is a first-party test by the workflow owner.
@@ -480,6 +528,17 @@ async function executeHttpStepLive(step: WorkflowStep, context: {
           mergedVars,
           variablesSchema
         )
+        const unresolved = getUnresolvedTemplateVariables(substituted)
+        if (unresolved.length > 0) {
+          return {
+            output: {
+              targetUrl,
+              queryParamsTemplate: proxy.queryParamsTemplate,
+              missingVariables: unresolved,
+            },
+            error: `Missing proxy variables: ${unresolved.join(', ')}`,
+          }
+        }
         const sep = targetUrl.includes('?') ? '&' : '?'
         targetUrl = `${targetUrl}${sep}${substituted}`
       }
@@ -528,9 +587,12 @@ async function executeHttpStepLive(step: WorkflowStep, context: {
       }
 
       if (!response.ok) {
+        const detail = getHttpErrorDetail(data)
         return {
           output: data,
-          error: `HTTP ${response.status}: ${response.statusText}`,
+          error: detail
+            ? `HTTP ${response.status}: ${response.statusText} - ${detail}`
+            : `HTTP ${response.status}: ${response.statusText}`,
         }
       }
 

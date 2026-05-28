@@ -31,7 +31,7 @@ const somniaTestnet = defineChain({
 
 // AgentDelegator contract address by chain
 const AGENT_DELEGATOR_ADDRESSES: Record<number, Address> = {
-  50312: "0x399A377CAAE39Ef521782197C3A4c7159a7274cC",
+  50312: "0x0b8bC9dd22D1D69F820B724fe10Cb401A1300BE9",
 };
 
 async function main() {

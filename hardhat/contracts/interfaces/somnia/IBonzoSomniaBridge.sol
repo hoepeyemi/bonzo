@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @notice AgentFabric bridge surface for session keys and AgentDelegator forwarding.
-interface IAgentFabricSomniaBridge {
+/// @notice Bonzo bridge surface for session keys and AgentDelegator forwarding.
+interface IBonzoSomniaBridge {
     function quoteJsonApiDeposit() external view returns (uint256);
 
     function requestJsonApiUint(

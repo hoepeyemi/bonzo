@@ -1,5 +1,5 @@
 /**
- * Quote STT deposit and invoke a labeled JSON API Somnia agent via Bonzo AISomniaBridge.
+ * Quote STT deposit and invoke a labeled JSON API Somnia agent via BonzoSomniaBridge.
  *
  * Usage:
  *   pnpm --filter hardhat somnia:oracle

@@ -42,7 +42,7 @@ export function requireSomniaAgentBridge(chainId?: number): Address {
   const bridge = getSomniaAgentsConfig(chainId).bridgeAddress
   if (!bridge) {
     throw new Error(
-      'NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS is not set. Deploy Bonzo AISomniaBridge first.'
+      'NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS is not set. Deploy BonzoSomniaBridge first.'
     )
   }
   return bridge

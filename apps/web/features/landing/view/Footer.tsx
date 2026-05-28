@@ -15,9 +15,8 @@ export function Footer() {
       <div className="container">
         <div className="flex flex-col items-center gap-6 text-center">
           {/* Brand */}
-          <Link href="/" className="flex items-center gap-1 font-semibold text-xl">
-            <span className="text-foreground">Agent</span>
-            <span className="text-primary font-bold">Fabric</span>
+          <Link href="/" className="font-semibold text-xl">
+            <span className="text-foreground">Bonzo</span>
           </Link>
 
           {/* Links */}
@@ -41,7 +40,7 @@ export function Footer() {
 
           {/* Descriptor */}
           <p className="text-sm text-muted-foreground max-w-md">
-            Bonzo AI — an agent-native x402 execution fabric for Somnia.
+            Bonzo — an agent-native x402 execution fabric for Somnia.
           </p>
         </div>
       </div>
