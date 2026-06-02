@@ -4,6 +4,10 @@ import { eq } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 import * as bcrypt from 'bcrypt'
 
+function logOAuthRegistration(stage: string, details: Record<string, unknown> = {}) {
+  console.log(`[OAuth Register] ${stage}`, details)
+}
+
 /**
  * POST /api/oauth/register
  *
@@ -44,6 +48,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    logOAuthRegistration('request:start', {
+      mcpSlug: mcpSlug ?? null,
+      redirectUriCount: Array.isArray(body.redirect_uris) ? body.redirect_uris.length : 0,
+      hasClientName: Boolean(body.client_name),
+      hasClientUri: Boolean(body.client_uri),
+      hasLogoUri: Boolean(body.logo_uri),
+      scope: body.scope ?? null,
+      referer: request.headers.get('referer') || request.headers.get('origin') || null,
+    })
+
     const {
       redirect_uris: redirectUris,
       client_name: clientName,
@@ -54,6 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Validate redirect_uris
     if (!redirectUris || !Array.isArray(redirectUris) || redirectUris.length === 0) {
+      logOAuthRegistration('request:invalid-redirect-uris', { mcpSlug: mcpSlug ?? null })
       return NextResponse.json({
         error: 'invalid_redirect_uri',
         error_description: 'redirect_uris is required and must be a non-empty array',
@@ -120,6 +135,12 @@ export async function POST(request: NextRequest) {
         scopes: requestedScopes,
         mcpSlug: mcpSlug || existingClient.mcpSlug,
       })
+      logOAuthRegistration('client:refreshed', {
+        clientId,
+        mcpSlug: mcpSlug || existingClient.mcpSlug,
+        redirectUris,
+        scopes: requestedScopes,
+      })
     } else {
       // Create new client
       clientId = `mcp_${randomBytes(16).toString('hex')}`
@@ -141,6 +162,12 @@ export async function POST(request: NextRequest) {
         redirectUris,
         scopes: requestedScopes,
         mcpSlug,
+      })
+      logOAuthRegistration('client:registered', {
+        clientId,
+        mcpSlug: mcpSlug ?? null,
+        redirectUris,
+        scopes: requestedScopes,
       })
     }
 
@@ -165,6 +192,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[POST /api/oauth/register] Error:', error)
+    logOAuthRegistration('request:error', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json({
       error: 'server_error',
       error_description: 'Failed to register client',

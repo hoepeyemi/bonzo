@@ -14,6 +14,7 @@ dotenv.config({ path: resolve(appRoot, '.env') })
 
 async function main() {
   // Dynamic import AFTER env vars are loaded (ESM hoists static imports)
+  const { config } = await import('./config.js')
   const { createApp, shutdown } = await import('./server.js')
 
   // Debug: Log all relevant env vars
@@ -22,12 +23,17 @@ async function main() {
   console.log(`  - NEXT_APP_URL: ${process.env.NEXT_APP_URL}`)
   console.log(`  - PORT: ${process.env.PORT}`)
   console.log(`  - CHAIN_ID: ${process.env.CHAIN_ID}`)
+  console.log('[MCP Server] Resolved config:')
+  console.log(`  - nextAppUrl: ${config.nextAppUrl}`)
+  console.log(`  - mcpPublicUrl: ${config.mcpPublicUrl ?? '(unset)'}`)
+  console.log(`  - chainId: ${config.chainId}`)
+  console.log(`  - mcpClientId: ${config.mcpClientId}`)
 
   // Configuration
-  const PORT = parseInt(process.env.PORT ?? '3001', 10)
-  const NEXT_APP_URL = process.env.NEXT_APP_URL ?? 'http://localhost:3000'
-  const MCP_PUBLIC_URL = process.env.MCP_PUBLIC_URL ?? null
-  const CHAIN_ID = parseInt(process.env.CHAIN_ID ?? '50312', 10)
+  const PORT = config.port
+  const NEXT_APP_URL = config.nextAppUrl
+  const MCP_PUBLIC_URL = config.mcpPublicUrl
+  const CHAIN_ID = config.chainId
   console.log('[MCP Server] Starting...')
   console.log(`[MCP Server] Configuration:`)
   console.log(`  - Port: ${PORT}`)

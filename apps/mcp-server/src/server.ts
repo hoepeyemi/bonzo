@@ -30,6 +30,10 @@ interface McpSession {
 // Session storage
 const sessions = new Map<string, McpSession>()
 
+function logConnection(stage: string, details: Record<string, unknown> = {}) {
+  console.log(`[MCP Trace] ${stage}`, details)
+}
+
 /**
  * Create the Express app for the MCP server
  */
@@ -51,6 +55,47 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
   // Parse JSON bodies
   app.use(express.json())
 
+  // Trace the auth + MCP connection flow without leaking secrets.
+  app.use((req, res, next) => {
+    const isTraceablePath =
+      req.path.startsWith('/mcp/') ||
+      req.path.startsWith('/.well-known/') ||
+      req.path.startsWith('/api/oauth/')
+
+    if (!isTraceablePath) {
+      next()
+      return
+    }
+
+    const requestId = (req.get('x-request-id') || randomUUID()).toString()
+    res.setHeader('x-request-id', requestId)
+
+    const startedAt = Date.now()
+    logConnection('request:start', {
+      requestId,
+      method: req.method,
+      path: req.originalUrl,
+      host: req.get('host') ?? null,
+      forwardedHost: req.get('x-forwarded-host') ?? null,
+      forwardedProto: req.get('x-forwarded-proto') ?? null,
+      hasAuthorization: Boolean(req.headers.authorization),
+      hasSessionId: Boolean(req.headers['mcp-session-id']),
+      userAgent: req.get('user-agent') ?? null,
+    })
+
+    res.on('finish', () => {
+      logConnection('request:finish', {
+        requestId,
+        method: req.method,
+        path: req.originalUrl,
+        statusCode: res.statusCode,
+        durationMs: Date.now() - startedAt,
+      })
+    })
+
+    next()
+  })
+
   // Serve favicon
   app.use('/favicon.ico', express.static(path.join(__dirname, '../public/favicon.ico')))
 
@@ -65,6 +110,11 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
    * Global endpoint (without slug) - returns generic metadata
    */
   app.get('/.well-known/oauth-authorization-server', (_req, res) => {
+    logConnection('oauth-discovery:global', {
+      issuer: config.nextAppUrl,
+      authorizationEndpoint: `${config.nextAppUrl}/authorize`,
+      registrationEndpoint: `${config.nextAppUrl}/api/oauth/register`,
+    })
     const metadata = {
       issuer: config.nextAppUrl,
       authorization_endpoint: `${config.nextAppUrl}/authorize`,
@@ -99,6 +149,12 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
 
     if (slug) {
       // Return slug-aware metadata
+      logConnection('oauth-discovery:slug', {
+        slug,
+        issuer: config.nextAppUrl,
+        authorizationEndpoint: `${config.nextAppUrl}/authorize?mcp_slug=${encodeURIComponent(slug)}`,
+        registrationEndpoint: `${config.nextAppUrl}/api/oauth/register?mcp_slug=${encodeURIComponent(slug)}`,
+      })
       const metadata = {
         issuer: config.nextAppUrl,
         authorization_endpoint: `${config.nextAppUrl}/authorize?mcp_slug=${encodeURIComponent(slug)}`,
@@ -114,6 +170,10 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
       res.json(metadata)
     } else {
       // Return generic metadata for unrecognized paths
+      logConnection('oauth-discovery:unknown-path', {
+        path: fullPath,
+        issuer: config.nextAppUrl,
+      })
       const metadata = {
         issuer: config.nextAppUrl,
         authorization_endpoint: `${config.nextAppUrl}/authorize`,
@@ -153,6 +213,10 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
    */
   app.get('/.well-known/oauth-protected-resource', (req, res) => {
     const mcpServerUrl = getPublicUrl(req)
+    logConnection('resource-discovery:global', {
+      resource: mcpServerUrl,
+      authorizationServer: config.nextAppUrl,
+    })
     const metadata = {
       resource: mcpServerUrl,
       authorization_servers: [config.nextAppUrl],
@@ -170,6 +234,12 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
     const slugParam = req.params.slug
     const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam
 
+    logConnection('oauth-discovery:mcp-slug', {
+      slug,
+      issuer: config.nextAppUrl,
+      authorizationEndpoint: `${config.nextAppUrl}/authorize?mcp_slug=${encodeURIComponent(slug)}`,
+      registrationEndpoint: `${config.nextAppUrl}/api/oauth/register?mcp_slug=${encodeURIComponent(slug)}`,
+    })
     const metadata = {
       issuer: config.nextAppUrl,
       authorization_endpoint: `${config.nextAppUrl}/authorize?mcp_slug=${encodeURIComponent(slug)}`,
@@ -195,6 +265,11 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
     const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam
     const mcpServerUrl = getPublicUrl(req)
 
+    logConnection('resource-discovery:mcp-slug', {
+      slug,
+      resource: `${mcpServerUrl}/mcp/${slug}`,
+      authorizationServer: `${mcpServerUrl}/mcp/${slug}`,
+    })
     const metadata = {
       resource: `${mcpServerUrl}/mcp/${slug}`,
       // Point to MCP server's own slug-aware OAuth discovery endpoint
@@ -220,6 +295,9 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
 
     if (!slug) {
       res.status(400).json({ error: 'Missing MCP server slug' })
+      logConnection('mcp:missing-slug', {
+        path: req.originalUrl,
+      })
       return
     }
 
@@ -233,13 +311,29 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
       if (session) {
         // Verify the session is for the correct slug
         if (session.slug !== slug) {
+          logConnection('mcp:session-slug-mismatch', {
+            sessionId,
+            requestedSlug: slug,
+            sessionSlug: session.slug,
+          })
           res.status(403).json({ error: 'Session does not match requested slug' })
           return
         }
+        logConnection('mcp:session-reused', {
+          sessionId,
+          slug,
+          clientName: session.config.name,
+          toolCount: session.config.tools.length,
+          workflowCount: session.config.workflowTools.length,
+        })
         req.mcpAuth = session.auth
         next()
         return
       }
+      logConnection('mcp:session-id-not-found', {
+        sessionId,
+        slug,
+      })
     }
 
     // Validate OAuth token for new sessions
@@ -252,6 +346,12 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
       // Use slug-specific resource metadata URL so client discovers slug-aware authorization endpoint
       const publicUrl = getPublicUrl(req)
       const resourceMetadataUrl = `${publicUrl}/mcp/${slug}/.well-known/oauth-protected-resource`
+      logConnection('mcp:unauthorized', {
+        slug,
+        resourceMetadataUrl,
+        hasAuthorization: Boolean(authHeader),
+        sessionId: sessionId ?? null,
+      })
       res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}"`)
       res.status(401).json({
         error: 'unauthorized',
@@ -263,6 +363,12 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
 
     // Validate slug binding if token is scoped to a specific slug
     if (auth.mcpSlug && auth.mcpSlug !== slug) {
+      logConnection('mcp:token-slug-mismatch', {
+        slug,
+        tokenSlug: auth.mcpSlug,
+        accessTokenId: auth.accessTokenId,
+        sessionId: auth.session.id,
+      })
       res.status(403).json({
         error: 'forbidden',
         error_description: `Token is scoped to slug "${auth.mcpSlug}", not "${slug}"`,
@@ -270,6 +376,13 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
       return
     }
 
+    logConnection('mcp:authorized', {
+      slug,
+      userAddress: auth.user.walletAddress,
+      clientSessionId: auth.session.sessionId,
+      accessTokenId: auth.accessTokenId,
+      scopes: auth.scopes,
+    })
     req.mcpAuth = auth
     next()
   }
@@ -372,17 +485,29 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
       const serverConfig = await toolRegistry.loadToolsForSlug(slug)
 
       if (!serverConfig) {
+        logConnection('mcp:server-config-missing', { slug })
         res.status(404).json({ error: 'MCP server not found' })
         return
       }
 
       // Create new MCP server for this session
       const mcpServer = createMcpServer(serverConfig, auth)
+      logConnection('mcp:server-created', {
+        slug,
+        serverName: serverConfig.name,
+        toolCount: serverConfig.tools.length,
+        workflowCount: serverConfig.workflowTools.length,
+      })
 
       // Create transport (without eventStore - resumability disabled)
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (newSessionId) => {
+          logConnection('mcp:session-initialized', {
+            sessionId: newSessionId,
+            slug,
+            userAddress: auth.user.walletAddress,
+          })
           sessions.set(newSessionId, {
             transport,
             server: mcpServer,
@@ -400,6 +525,10 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
       transport.onclose = () => {
         const sid = transport.sessionId
         if (sid) {
+          logConnection('mcp:session-closed', {
+            sessionId: sid,
+            slug,
+          })
           sessions.delete(sid)
         }
       }
@@ -424,11 +553,20 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
     const sessionId = req.headers['mcp-session-id'] as string | undefined
 
     if (!sessionId || !sessions.has(sessionId)) {
+      logConnection('mcp:get-invalid-session', {
+        slug: req.params.slug,
+        sessionId: sessionId ?? null,
+      })
       res.status(400).json({ error: 'Invalid or missing session ID' })
       return
     }
 
     const session = sessions.get(sessionId)!
+    logConnection('mcp:get-session', {
+      sessionId,
+      slug: req.params.slug,
+      sessionSlug: session.slug,
+    })
 
     try {
       await session.transport.handleRequest(
@@ -449,11 +587,20 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
     const sessionId = req.headers['mcp-session-id'] as string | undefined
 
     if (!sessionId || !sessions.has(sessionId)) {
+      logConnection('mcp:delete-invalid-session', {
+        slug: req.params.slug,
+        sessionId: sessionId ?? null,
+      })
       res.status(400).json({ error: 'Invalid or missing session ID' })
       return
     }
 
     const session = sessions.get(sessionId)!
+    logConnection('mcp:delete-session', {
+      sessionId,
+      slug: req.params.slug,
+      sessionSlug: session.slug,
+    })
 
     try {
       await session.transport.handleRequest(

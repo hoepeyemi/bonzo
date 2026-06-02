@@ -11,6 +11,10 @@ import {
 } from '@/lib/auth/oauth'
 import * as bcrypt from 'bcrypt'
 
+function logOAuthToken(stage: string, details: Record<string, unknown> = {}) {
+  console.log(`[OAuth Token] ${stage}`, details)
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -53,8 +57,18 @@ export async function POST(request: NextRequest) {
     code_verifier: codeVerifier,
   } = body
 
+  logOAuthToken('request:start', {
+    grantType,
+    clientId,
+    redirectUri,
+    hasCode: Boolean(code),
+    hasClientSecret: Boolean(clientSecret),
+    hasCodeVerifier: Boolean(codeVerifier),
+  })
+
   // Validate grant type
   if (grantType !== 'authorization_code') {
+    logOAuthToken('request:unsupported-grant-type', { grantType })
     return NextResponse.json({
       error: 'unsupported_grant_type',
       error_description: 'Only authorization_code grant type is supported',
@@ -63,24 +77,28 @@ export async function POST(request: NextRequest) {
 
   // Validate required params
   if (!code) {
+    logOAuthToken('request:missing-code', { clientId: clientId ?? null })
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing authorization code',
     }, { status: 400, headers: corsHeaders() })
   }
   if (!clientId) {
+    logOAuthToken('request:missing-client-id')
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing client_id',
     }, { status: 400, headers: corsHeaders() })
   }
   if (!clientSecret) {
+    logOAuthToken('request:missing-client-secret', { clientId: clientId ?? null })
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing client_secret',
     }, { status: 400, headers: corsHeaders() })
   }
   if (!codeVerifier) {
+    logOAuthToken('request:missing-code-verifier', { clientId: clientId ?? null })
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing code_verifier (PKCE required)',
@@ -90,6 +108,7 @@ export async function POST(request: NextRequest) {
   // Get and validate client
   const client = await getOAuthClient(clientId)
   if (!client) {
+    logOAuthToken('request:invalid-client', { clientId })
     return NextResponse.json({
       error: 'invalid_client',
       error_description: 'Unknown client',
@@ -99,6 +118,7 @@ export async function POST(request: NextRequest) {
   // Verify client secret
   const secretValid = await bcrypt.compare(clientSecret, client.secretHash)
   if (!secretValid) {
+    logOAuthToken('request:invalid-client-secret', { clientId })
     return NextResponse.json({
       error: 'invalid_client',
       error_description: 'Invalid client credentials',
@@ -108,6 +128,7 @@ export async function POST(request: NextRequest) {
   // Get and validate authorization code
   const authCode = await getAndValidateAuthCode(code, clientId)
   if (!authCode) {
+    logOAuthToken('request:invalid-auth-code', { clientId })
     return NextResponse.json({
       error: 'invalid_grant',
       error_description: 'Invalid or expired authorization code',
@@ -116,6 +137,11 @@ export async function POST(request: NextRequest) {
 
   // Verify redirect URI matches
   if (redirectUri && authCode.redirectUri !== redirectUri) {
+    logOAuthToken('request:redirect-uri-mismatch', {
+      clientId,
+      redirectUri,
+      expectedRedirectUri: authCode.redirectUri,
+    })
     return NextResponse.json({
       error: 'invalid_grant',
       error_description: 'Redirect URI mismatch',
@@ -124,6 +150,7 @@ export async function POST(request: NextRequest) {
 
   // Verify PKCE code challenge
   if (!verifyCodeChallenge(codeVerifier, authCode.codeChallenge)) {
+    logOAuthToken('request:invalid-code-verifier', { clientId })
     return NextResponse.json({
       error: 'invalid_grant',
       error_description: 'Invalid code_verifier',
@@ -133,6 +160,7 @@ export async function POST(request: NextRequest) {
   // Get the session linked to this authorization
   const sessionId = authCode.sessionConfig.sessionId
   if (!sessionId) {
+    logOAuthToken('request:no-session-linked', { clientId })
     return NextResponse.json({
       error: 'invalid_grant',
       error_description: 'No session linked to this authorization',
@@ -148,6 +176,10 @@ export async function POST(request: NextRequest) {
   })
 
   if (!session) {
+    logOAuthToken('request:linked-session-missing', {
+      clientId,
+      sessionId,
+    })
     return NextResponse.json({
       error: 'invalid_grant',
       error_description: 'Linked session not found or inactive',
@@ -182,6 +214,14 @@ export async function POST(request: NextRequest) {
     sessionId: session.sessionId,
     scopes: authCode.approvedScopes,
     mcpSlug: authCode.sessionConfig.mcpSlug || null,
+    expiresAt: expiresAt.toISOString(),
+  })
+  logOAuthToken('request:success', {
+    clientId,
+    userId: authCode.userId,
+    sessionId: session.sessionId,
+    mcpSlug: authCode.sessionConfig.mcpSlug || null,
+    scopeCount: authCode.approvedScopes.length,
     expiresAt: expiresAt.toISOString(),
   })
 
