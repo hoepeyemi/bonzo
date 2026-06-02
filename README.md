@@ -9,6 +9,8 @@ Instead, they operate via session keys with explicit, enforceable limits — suc
 
 ---
 
+
+
 ## What Bonzo Enables
 
 - AI agents that can execute on-chain actions safely
