@@ -36,6 +36,20 @@ pnpm build
 pnpm start
 ```
 
+## Docker
+
+Build from the repository root:
+
+```bash
+docker build -f Dockerfile.mcp -t bottie-mcp .
+```
+
+Run the container on port 3001 with your MCP environment file:
+
+```bash
+docker run --rm -p 3001:3001 --env-file apps/mcp-server/.env bottie-mcp
+```
+
 ## API Endpoints
 
 | Endpoint | Description |
