@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { randomUUID } from 'crypto'
 
 function shouldTrace(pathname: string): boolean {
   return (
@@ -12,15 +11,22 @@ function shouldTrace(pathname: string): boolean {
   )
 }
 
-export function middleware(request: NextRequest) {
+function makeRequestId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+export function proxy(request: NextRequest) {
   if (!shouldTrace(request.nextUrl.pathname)) {
     return NextResponse.next()
   }
 
-  const requestId = request.headers.get('x-request-id') || randomUUID()
+  const requestId = request.headers.get('x-request-id') || makeRequestId()
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-request-id', requestId)
+
   const response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   })
 

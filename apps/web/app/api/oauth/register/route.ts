@@ -35,8 +35,8 @@ function getRequestTrace(request: NextRequest) {
  * - scope: Space-separated list of scopes (optional)
  */
 export async function POST(request: NextRequest) {
+  const trace = getRequestTrace(request)
   try {
-    const trace = getRequestTrace(request)
     const body = await request.json()
     const { searchParams } = new URL(request.url)
 
