@@ -153,10 +153,33 @@ jobs:
             fi
 
             WEB_PUBLIC_MCP_URL=$(grep -E '^NEXT_PUBLIC_MCP_URL=' "$WEB_ENV" | tail -n 1 | cut -d= -f2- || true)
+            WEB_PUBLIC_APP_URL=$(grep -E '^NEXT_PUBLIC_APP_URL=' "$WEB_ENV" | tail -n 1 | cut -d= -f2- || true)
             MCP_PUBLIC_URL=$(grep -E '^MCP_PUBLIC_URL=' "$MCP_ENV" | tail -n 1 | cut -d= -f2- || true)
-            if [ -n "$WEB_PUBLIC_MCP_URL" ] && [ -n "$MCP_PUBLIC_URL" ] && [ "$WEB_PUBLIC_MCP_URL" != "$MCP_PUBLIC_URL" ]; then
-              echo "WARNING: NEXT_PUBLIC_MCP_URL in .env.web differs from MCP_PUBLIC_URL in .env.mcp."
-              echo "WARNING: Claude may follow OAuth metadata to the MCP_PUBLIC_URL value and bypass web proxy logs."
+            MCP_NEXT_APP_URL=$(grep -E '^NEXT_APP_URL=' "$MCP_ENV" | tail -n 1 | cut -d= -f2- || true)
+
+            CANONICAL_PUBLIC_URL="${WEB_PUBLIC_APP_URL:-$WEB_PUBLIC_MCP_URL}"
+            if [ -z "$CANONICAL_PUBLIC_URL" ]; then
+              echo "ERROR: Set NEXT_PUBLIC_APP_URL or NEXT_PUBLIC_MCP_URL in $WEB_ENV."
+              exit 1
+            fi
+
+            if [ -n "$WEB_PUBLIC_MCP_URL" ] && [ "$WEB_PUBLIC_MCP_URL" != "$CANONICAL_PUBLIC_URL" ]; then
+              echo "ERROR: NEXT_PUBLIC_MCP_URL in .env.web must match the canonical public web origin."
+              echo "  NEXT_PUBLIC_APP_URL=$WEB_PUBLIC_APP_URL"
+              echo "  NEXT_PUBLIC_MCP_URL=$WEB_PUBLIC_MCP_URL"
+              exit 1
+            fi
+            if [ -n "$MCP_PUBLIC_URL" ] && [ "$MCP_PUBLIC_URL" != "$CANONICAL_PUBLIC_URL" ]; then
+              echo "ERROR: MCP_PUBLIC_URL in .env.mcp must match the canonical public web origin."
+              echo "  canonical=$CANONICAL_PUBLIC_URL"
+              echo "  MCP_PUBLIC_URL=$MCP_PUBLIC_URL"
+              exit 1
+            fi
+            if [ -n "$MCP_NEXT_APP_URL" ] && [ "$MCP_NEXT_APP_URL" != "$CANONICAL_PUBLIC_URL" ]; then
+              echo "ERROR: NEXT_APP_URL in .env.mcp must match the canonical public web origin."
+              echo "  canonical=$CANONICAL_PUBLIC_URL"
+              echo "  NEXT_APP_URL=$MCP_NEXT_APP_URL"
+              exit 1
             fi
 
             echo "Creating Docker network if missing..."
@@ -213,7 +236,8 @@ jobs:
             fi
 
             echo "Checking proxied MCP connector path..."
-            PROXY_RESPONSE=$(sudo docker exec bottie-web wget -qSO- http://localhost:3000/mcp/bonzomcp 2>&1 >/dev/null || true)
+            CANONICAL_HOST=$(printf '%s\n' "$CANONICAL_PUBLIC_URL" | sed -E 's#^https?://([^/]+).*#\1#')
+            PROXY_RESPONSE=$(sudo docker exec bottie-web wget --header="Host: $CANONICAL_HOST" -qSO- http://localhost:3000/mcp/bonzomcp 2>&1 >/dev/null || true)
             PROXY_STATUS=$(printf '%s\n' "$PROXY_RESPONSE" | awk '/^[[:space:]]*HTTP\/[0-9.]+/ { code=$2 } END { print code }')
             if [ "$PROXY_STATUS" != "401" ]; then
               echo "ERROR: Expected /mcp/bonzomcp through web to return 401 before OAuth, got: $PROXY_STATUS"
