@@ -214,9 +214,16 @@ jobs:
 
             echo "Checking proxied MCP connector path..."
             PROXY_RESPONSE=$(sudo docker exec bottie-web wget -qSO- http://localhost:3000/mcp/bonzomcp 2>&1 >/dev/null || true)
-            PROXY_STATUS=$(printf '%s\n' "$PROXY_RESPONSE" | awk '/HTTP\// { code=$2 } END { print code }')
+            PROXY_STATUS=$(printf '%s\n' "$PROXY_RESPONSE" | awk '/^[[:space:]]*HTTP\/[0-9.]+/ { code=$2 } END { print code }')
             if [ "$PROXY_STATUS" != "401" ]; then
               echo "ERROR: Expected /mcp/bonzomcp through web to return 401 before OAuth, got: $PROXY_STATUS"
+              sudo docker logs --tail 80 bottie-web || true
+              sudo docker logs --tail 80 bottie-mcp-server || true
+              exit 1
+            fi
+            if ! printf '%s\n' "$PROXY_RESPONSE" | grep -q 'resource_metadata="http://localhost:3000/mcp/bonzomcp/.well-known/oauth-protected-resource"'; then
+              echo "ERROR: Proxied MCP challenge did not advertise the web /mcp/bonzomcp resource metadata URL."
+              printf '%s\n' "$PROXY_RESPONSE"
               sudo docker logs --tail 80 bottie-web || true
               sudo docker logs --tail 80 bottie-mcp-server || true
               exit 1

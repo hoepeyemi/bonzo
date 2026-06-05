@@ -191,18 +191,20 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
 
   /**
    * Helper to get the public-facing URL
-   * Priority: MCP_PUBLIC_URL env var > x-forwarded-host header > request host
+   * Priority: x-forwarded-host header > MCP_PUBLIC_URL env var > request host
+   *
+   * When the web app proxies /mcp/* to this container, the forwarded host is
+   * the real public connector origin. Prefer it so OAuth metadata cannot drift
+   * back to an older MCP_PUBLIC_URL and send clients away from the web logs.
    */
   const getPublicUrl = (req: express.Request): string => {
-    // Use configured public URL if available (for subdomain setup)
-    if (config.mcpPublicUrl) {
-      return config.mcpPublicUrl
-    }
-    // Fall back to forwarded headers (for proxy setup)
     const forwardedHost = req.get('x-forwarded-host')
     const forwardedProto = req.get('x-forwarded-proto') || req.protocol
     if (forwardedHost) {
       return `${forwardedProto}://${forwardedHost}`
+    }
+    if (config.mcpPublicUrl) {
+      return config.mcpPublicUrl
     }
     return `${req.protocol}://${req.get('host')}`
   }
