@@ -29,8 +29,22 @@ function getMcpUpstreamUrl(): string {
   ).replace(/\/$/, '')
 }
 
+function getPublicMcpUrl(request: NextRequest): URL {
+  const publicBase =
+    process.env.NEXT_PUBLIC_MCP_URL ||
+    process.env.MCP_PUBLIC_URL ||
+    process.env.NEXT_PUBLIC_APP_URL
+
+  if (publicBase) {
+    return new URL(publicBase)
+  }
+
+  return new URL(request.nextUrl.origin)
+}
+
 function sanitizeRequestHeaders(request: NextRequest, upstream: URL, requestId: string): Headers {
   const headers = new Headers(request.headers)
+  const publicMcpUrl = getPublicMcpUrl(request)
 
   for (const header of HOP_BY_HOP_HEADERS) {
     headers.delete(header)
@@ -38,8 +52,8 @@ function sanitizeRequestHeaders(request: NextRequest, upstream: URL, requestId: 
 
   headers.set('host', upstream.host)
   headers.set('x-request-id', requestId)
-  headers.set('x-forwarded-host', request.headers.get('host') || request.nextUrl.host)
-  headers.set('x-forwarded-proto', request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', ''))
+  headers.set('x-forwarded-host', publicMcpUrl.host)
+  headers.set('x-forwarded-proto', publicMcpUrl.protocol.replace(':', ''))
   headers.set('x-forwarded-for', request.headers.get('x-forwarded-for') || '')
 
   return headers
@@ -69,6 +83,7 @@ export async function proxyToMcpServer(request: NextRequest, upstreamPath: strin
     method: request.method,
     publicPath: `${request.nextUrl.pathname}${request.nextUrl.search}`,
     upstream: upstream.toString(),
+    forwardedPublicOrigin: getPublicMcpUrl(request).origin,
     host: request.headers.get('host'),
     userAgent: request.headers.get('user-agent'),
     hasAuthorization: Boolean(request.headers.get('authorization')),

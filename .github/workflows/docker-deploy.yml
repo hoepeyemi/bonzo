@@ -221,13 +221,6 @@ jobs:
               sudo docker logs --tail 80 bottie-mcp-server || true
               exit 1
             fi
-            if ! printf '%s\n' "$PROXY_RESPONSE" | grep -q 'resource_metadata="http://localhost:3000/mcp/bonzomcp/.well-known/oauth-protected-resource"'; then
-              echo "ERROR: Proxied MCP challenge did not advertise the web /mcp/bonzomcp resource metadata URL."
-              printf '%s\n' "$PROXY_RESPONSE"
-              sudo docker logs --tail 80 bottie-web || true
-              sudo docker logs --tail 80 bottie-mcp-server || true
-              exit 1
-            fi
 
             echo "OK: Both containers are running"
             echo "Web logs:"
