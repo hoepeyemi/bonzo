@@ -8,6 +8,8 @@
 # Optional GitHub secrets for the web build:
 #   NEXT_PUBLIC_APP_URL
 #   NEXT_PUBLIC_MCP_URL
+#     Recommended for single-domain connector logging:
+#     set this to the public web origin, for example https://app.example.com.
 #   NEXT_PUBLIC_CHAIN_ID
 #   NEXT_PUBLIC_USDCE_ADDRESS
 #   NEXT_PUBLIC_X402_FACILITATOR_URL
@@ -17,6 +19,11 @@
 # Runtime env files live on the Ubuntu host:
 #   /home/ubuntu/bottie/.env.web
 #   /home/ubuntu/bottie/.env.mcp
+#
+# For connector observability, set:
+#   .env.web: NEXT_PUBLIC_MCP_URL=https://your-web-origin
+#   .env.mcp: NEXT_APP_URL=https://your-web-origin
+#   .env.mcp: MCP_PUBLIC_URL=https://your-web-origin
 
 name: Build and Deploy Bonzo (web + mcp-server)
 
@@ -125,6 +132,7 @@ jobs:
             APP_DIR=/home/ubuntu/bottie
             WEB_ENV=$APP_DIR/.env.web
             MCP_ENV=$APP_DIR/.env.mcp
+            MCP_INTERNAL_URL=http://bottie-mcp-server:3001
 
             if [ ! -f "$WEB_ENV" ]; then
               echo "ERROR: Missing web env file: $WEB_ENV"
@@ -133,6 +141,22 @@ jobs:
             if [ ! -f "$MCP_ENV" ]; then
               echo "ERROR: Missing MCP env file: $MCP_ENV"
               exit 1
+            fi
+
+            echo "Normalizing env file line endings..."
+            sudo sed -i 's/\r$//' "$WEB_ENV" "$MCP_ENV"
+
+            echo "Checking env file syntax..."
+            if grep -nE '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]+=' "$WEB_ENV" "$MCP_ENV"; then
+              echo "ERROR: Env keys must not contain spaces before '='. Example: use CHAIN_ID=50312, not CHAIN_ID =50312."
+              exit 1
+            fi
+
+            WEB_PUBLIC_MCP_URL=$(grep -E '^NEXT_PUBLIC_MCP_URL=' "$WEB_ENV" | tail -n 1 | cut -d= -f2- || true)
+            MCP_PUBLIC_URL=$(grep -E '^MCP_PUBLIC_URL=' "$MCP_ENV" | tail -n 1 | cut -d= -f2- || true)
+            if [ -n "$WEB_PUBLIC_MCP_URL" ] && [ -n "$MCP_PUBLIC_URL" ] && [ "$WEB_PUBLIC_MCP_URL" != "$MCP_PUBLIC_URL" ]; then
+              echo "WARNING: NEXT_PUBLIC_MCP_URL in .env.web differs from MCP_PUBLIC_URL in .env.mcp."
+              echo "WARNING: Claude may follow OAuth metadata to the MCP_PUBLIC_URL value and bypass web proxy logs."
             fi
 
             echo "Creating Docker network if missing..."
@@ -146,15 +170,6 @@ jobs:
             sudo docker pull ${{ env.WEB_IMAGE }}
             sudo docker pull ${{ env.MCP_IMAGE }}
 
-            echo "Starting web app..."
-            sudo docker run -d \
-              --name bottie-web \
-              --restart unless-stopped \
-              --network bottie-net \
-              -p 3000:3000 \
-              --env-file "$WEB_ENV" \
-              ${{ env.WEB_IMAGE }}
-
             echo "Starting MCP server..."
             sudo docker run -d \
               --name bottie-mcp-server \
@@ -163,6 +178,16 @@ jobs:
               -p 3001:3001 \
               --env-file "$MCP_ENV" \
               ${{ env.MCP_IMAGE }}
+
+            echo "Starting web app..."
+            sudo docker run -d \
+              --name bottie-web \
+              --restart unless-stopped \
+              --network bottie-net \
+              -p 3000:3000 \
+              --env-file "$WEB_ENV" \
+              -e MCP_INTERNAL_URL="$MCP_INTERNAL_URL" \
+              ${{ env.WEB_IMAGE }}
 
             echo "Verifying deployment..."
             sleep 10
@@ -176,6 +201,24 @@ jobs:
             if ! sudo docker ps --format '{{.Names}}' | grep -q '^bottie-mcp-server$'; then
               echo "ERROR: MCP container failed to start"
               sudo docker logs bottie-mcp-server || true
+              exit 1
+            fi
+
+            echo "Checking web-to-MCP internal connectivity..."
+            if ! sudo docker exec bottie-web wget -qO- "$MCP_INTERNAL_URL/health" >/dev/null; then
+              echo "ERROR: Web container cannot reach MCP server at $MCP_INTERNAL_URL"
+              sudo docker logs --tail 80 bottie-web || true
+              sudo docker logs --tail 80 bottie-mcp-server || true
+              exit 1
+            fi
+
+            echo "Checking proxied MCP connector path..."
+            PROXY_RESPONSE=$(sudo docker exec bottie-web wget -qSO- http://localhost:3000/mcp/bonzomcp 2>&1 >/dev/null || true)
+            PROXY_STATUS=$(printf '%s\n' "$PROXY_RESPONSE" | awk '/HTTP\// { code=$2 } END { print code }')
+            if [ "$PROXY_STATUS" != "401" ]; then
+              echo "ERROR: Expected /mcp/bonzomcp through web to return 401 before OAuth, got: $PROXY_STATUS"
+              sudo docker logs --tail 80 bottie-web || true
+              sudo docker logs --tail 80 bottie-mcp-server || true
               exit 1
             fi
 

@@ -28,7 +28,26 @@ Next.js 16 frontend and API backend for the Bonzo. Enables developers to list AP
    | `SESSION_SECRET` | 32+ character secret (`openssl rand -base64 32`) |
    | `SERVER_PUBLIC_KEY` | RSA public key for header encryption |
    | `SERVER_PRIVATE_KEY` | RSA private key for header encryption |
-   | `MCP_PUBLIC_URL` | Public URL of MCP server (e.g., `https://mcp.yourdomain.com`) - used in OAuth metadata to tell clients where to connect for MCP traffic |
+   | `NEXT_PUBLIC_MCP_URL` | Public MCP connector URL base shown in the UI. For Docker deployment, use the web origin so `/mcp/*` is proxied and logged by the web app (for example, `https://app.example.com`) |
+   | `MCP_INTERNAL_URL` | Internal MCP upstream used by the web proxy in Docker (for example, `http://bottie-mcp-server:3001`). The GitHub workflow injects this automatically |
+   | `MCP_PUBLIC_URL` | Optional server-side fallback for the public MCP connector URL. Keep it equal to `NEXT_PUBLIC_MCP_URL` if set |
+
+### Docker MCP Connector Routing
+
+In production Docker deployment, the public connector URL should normally be:
+
+```text
+https://your-web-origin/mcp/<server-slug>
+```
+
+The web app proxies `/mcp/*` and `/.well-known/*` to the MCP container over the Docker network. This makes connector attempts visible in both logs:
+
+```bash
+sudo docker logs bottie-web
+sudo docker logs bottie-mcp-server
+```
+
+Use the separate MCP container URL only as an internal upstream. If `MCP_PUBLIC_URL` points at a different public domain than `NEXT_PUBLIC_MCP_URL`, OAuth discovery may send the agent away from the web proxy and you will not see web-side connection logs.
 
 3. Start the databases:
    ```bash

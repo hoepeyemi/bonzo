@@ -19,7 +19,7 @@ The MCP server shares environment variables with the web app. Required variables
 | `DATABASE_URL` | PostgreSQL connection string (shared with web) |
 | `REDIS_URL` | Redis connection string (optional) |
 | `NEXT_APP_URL` | URL of the web app (default: `http://localhost:3000`) |
-| `MCP_PUBLIC_URL` | Public URL where this MCP server is accessible (e.g., `https://mcp.yourdomain.com`) - used in OAuth metadata and WWW-Authenticate headers |
+| `MCP_PUBLIC_URL` | Public URL where agents should connect for MCP traffic. In Docker deployment, set this to the web origin that proxies `/mcp/*` (for example, `https://app.example.com`), not the internal container URL |
 | `PORT` | Server port (default: `3001`) |
 | `CHAIN_ID` | Somnia Shannon testnet chain ID — `50312` |
 | `SERVER_PRIVATE_KEY` | RSA private key for decrypting session keys |
@@ -48,6 +48,25 @@ Run the container on port 3001 with your MCP environment file:
 
 ```bash
 docker run --rm -p 3001:3001 --env-file apps/mcp-server/.env bottie-mcp
+```
+
+When deployed beside the web container, the MCP server is reached internally at:
+
+```text
+http://bottie-mcp-server:3001
+```
+
+But OAuth metadata must advertise the public web origin:
+
+```dotenv
+NEXT_APP_URL=https://your-web-origin
+MCP_PUBLIC_URL=https://your-web-origin
+```
+
+Then the connector URL is:
+
+```text
+https://your-web-origin/mcp/<server-slug>
 ```
 
 ## API Endpoints

@@ -6,6 +6,16 @@ interface RouteParams {
   params: Promise<{ slug: string }>
 }
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/$/, '')
+}
+
+function getRequestOrigin(request: NextRequest): string {
+  const proto = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '')
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
+  return `${proto}://${host}`
+}
+
 /**
  * GET /api/mcp-servers/[slug]
  *
@@ -83,8 +93,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .where(and(eq(mcpServerWorkflows.mcpServerId, mcpServer.id), eq(mcpServerWorkflows.isEnabled, true)))
       .orderBy(asc(mcpServerWorkflows.displayOrder))
 
-    // Build connection URL (MCP server runs on subdomain)
-    const mcpBaseUrl = process.env.MCP_PUBLIC_URL || 'http://localhost:3001'
+    // Build the public connection URL. In production this should normally be
+    // the web app origin because /mcp/* is proxied to the MCP container.
+    const mcpBaseUrl = trimTrailingSlash(
+      process.env.NEXT_PUBLIC_MCP_URL ||
+      process.env.MCP_PUBLIC_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      getRequestOrigin(request)
+    )
     const connectionUrl = `${mcpBaseUrl}/mcp/${mcpServer.slug}`
 
     return NextResponse.json({

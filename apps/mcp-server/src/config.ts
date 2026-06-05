@@ -28,20 +28,23 @@ function getEnvOrThrow(key: string): string {
   if (!value) {
     throw new Error(`Missing required environment variable: ${key}`)
   }
-  return value
+  return value.trim()
 }
 
 function getEnvOrDefault(key: string, defaultValue: string): string {
-  return process.env[key] ?? defaultValue
+  return (process.env[key] ?? defaultValue).trim()
 }
 
 export function loadConfig(): Config {
+  const mcpPublicUrl = process.env.MCP_PUBLIC_URL?.trim() || null
+  const redisUrl = process.env.REDIS_URL?.trim() || null
+
   return {
     port: parseInt(getEnvOrDefault('PORT', '3001'), 10),
     databaseUrl: getEnvOrThrow('DATABASE_URL'),
-    redisUrl: process.env.REDIS_URL ?? null,
+    redisUrl,
     nextAppUrl: getEnvOrDefault('NEXT_APP_URL', 'http://localhost:3000'),
-    mcpPublicUrl: process.env.MCP_PUBLIC_URL ?? null,
+    mcpPublicUrl,
     serverPrivateKey: getEnvOrThrow('SERVER_PRIVATE_KEY'),
     mcpClientSecret: getEnvOrThrow('MCP_CLIENT_SECRET'),
     mcpClientId: getEnvOrDefault('MCP_CLIENT_ID', 'x402-mcp-platform'),

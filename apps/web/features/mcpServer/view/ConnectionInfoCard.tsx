@@ -10,7 +10,7 @@ interface ConnectionInfoCardProps {
 }
 
 export function ConnectionInfoCard({ serverSlug, copied, onCopy }: ConnectionInfoCardProps) {
-  const mcpBaseUrl = process.env.NEXT_PUBLIC_MCP_URL || 'http://localhost:3001'
+  const mcpBaseUrl = (process.env.NEXT_PUBLIC_MCP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001').replace(/\/$/, '')
   const endpointUrl = `${mcpBaseUrl}/mcp/${serverSlug}`
 
   return (
