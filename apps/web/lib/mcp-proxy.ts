@@ -30,6 +30,24 @@ function getMcpUpstreamUrl(): string {
 }
 
 function getPublicMcpUrl(request: NextRequest): URL {
+  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host')
+
+  if (forwardedHost && !isLocalHost(forwardedHost)) {
+    const configuredPublicUrl =
+      process.env.NEXT_PUBLIC_MCP_URL ||
+      process.env.MCP_PUBLIC_URL ||
+      process.env.NEXT_PUBLIC_APP_URL
+
+    if (configuredPublicUrl) {
+      const configured = new URL(configuredPublicUrl)
+      if (configured.host === forwardedHost) {
+        return configured
+      }
+    }
+
+    return new URL(`https://${forwardedHost}`)
+  }
+
   const publicBase =
     process.env.NEXT_PUBLIC_MCP_URL ||
     process.env.MCP_PUBLIC_URL ||
@@ -40,6 +58,15 @@ function getPublicMcpUrl(request: NextRequest): URL {
   }
 
   return new URL(request.nextUrl.origin)
+}
+
+function isLocalHost(host: string): boolean {
+  const normalizedHost = host.split(':')[0]?.toLowerCase()
+  return normalizedHost === 'localhost' ||
+    normalizedHost === '127.0.0.1' ||
+    normalizedHost === '0.0.0.0' ||
+    normalizedHost === 'bottie-web' ||
+    normalizedHost === 'bottie-mcp-server'
 }
 
 function sanitizeRequestHeaders(request: NextRequest, upstream: URL, requestId: string): Headers {
