@@ -1,12 +1,24 @@
-# Build and deploy the MCP server Docker image over SSH.
+# Build and push Docker images for web + mcp-server; deploy to Ubuntu host over SSH.
 #
 # Required GitHub secrets:
 #   DOCKER_USERNAME_PROD, DOCKER_HUB_ACCESS_TOKEN_PROD
 #   SSH_HOST_TEMP, SSH_USERNAME_TEMP, SSH_PRIVATE_TEMP
+#   NEXT_PUBLIC_REOWN_PROJECT_ID
 #
-# Runtime env for the container lives on the Ubuntu host in /home/ubuntu/bottie/.env.mcp
+# Optional GitHub secrets for the web build:
+#   NEXT_PUBLIC_APP_URL
+#   NEXT_PUBLIC_MCP_URL
+#   NEXT_PUBLIC_CHAIN_ID
+#   NEXT_PUBLIC_USDCE_ADDRESS
+#   NEXT_PUBLIC_X402_FACILITATOR_URL
+#   NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS
+#   NEXT_PUBLIC_JSON_API_AGENT_ID
+#
+# Runtime env files live on the Ubuntu host:
+#   /home/ubuntu/bottie/.env.web
+#   /home/ubuntu/bottie/.env.mcp
 
-name: Build and Deploy Bonzo MCP
+name: Build and Deploy Bonzo (web + mcp-server)
 
 on:
   push:
@@ -20,6 +32,7 @@ env:
   HOST: ${{ secrets.SSH_HOST_TEMP }}
   HOST_USERNAME: ${{ secrets.SSH_USERNAME_TEMP }}
   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_TEMP }}
+  WEB_IMAGE: ${{ secrets.DOCKER_USERNAME_PROD }}/bonzo-web:latest
   MCP_IMAGE: ${{ secrets.DOCKER_USERNAME_PROD }}/bonzo-mcp:latest
 
 jobs:
@@ -40,6 +53,24 @@ jobs:
           username: ${{ env.DOCKER_USERNAME }}
           password: ${{ env.DOCKER_PASSWORD }}
 
+      - name: Build web image (PR validation)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.web
+          push: false
+          tags: bonzo-web:pr
+          build-args: |
+            NEXT_PUBLIC_REOWN_PROJECT_ID=${{ secrets.NEXT_PUBLIC_REOWN_PROJECT_ID }}
+            NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_MCP_URL=${{ secrets.NEXT_PUBLIC_MCP_URL }}
+            NEXT_PUBLIC_CHAIN_ID=${{ secrets.NEXT_PUBLIC_CHAIN_ID }}
+            NEXT_PUBLIC_USDCE_ADDRESS=${{ secrets.NEXT_PUBLIC_USDCE_ADDRESS }}
+            NEXT_PUBLIC_X402_FACILITATOR_URL=${{ secrets.NEXT_PUBLIC_X402_FACILITATOR_URL }}
+            NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS=${{ secrets.NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS }}
+            NEXT_PUBLIC_JSON_API_AGENT_ID=${{ secrets.NEXT_PUBLIC_JSON_API_AGENT_ID }}
+
       - name: Build MCP image (PR validation)
         if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v5
@@ -48,6 +79,26 @@ jobs:
           file: Dockerfile.mcp
           push: false
           tags: bonzo-mcp:pr
+
+      - name: Build and push web image
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.web
+          push: true
+          tags: ${{ env.WEB_IMAGE }}
+          build-args: |
+            NEXT_PUBLIC_REOWN_PROJECT_ID=${{ secrets.NEXT_PUBLIC_REOWN_PROJECT_ID }}
+            NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_MCP_URL=${{ secrets.NEXT_PUBLIC_MCP_URL }}
+            NEXT_PUBLIC_CHAIN_ID=${{ secrets.NEXT_PUBLIC_CHAIN_ID }}
+            NEXT_PUBLIC_USDCE_ADDRESS=${{ secrets.NEXT_PUBLIC_USDCE_ADDRESS }}
+            NEXT_PUBLIC_X402_FACILITATOR_URL=${{ secrets.NEXT_PUBLIC_X402_FACILITATOR_URL }}
+            NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS=${{ secrets.NEXT_PUBLIC_SOMNIA_AGENT_BRIDGE_ADDRESS }}
+            NEXT_PUBLIC_JSON_API_AGENT_ID=${{ secrets.NEXT_PUBLIC_JSON_API_AGENT_ID }}
+          cache-from: type=gha,scope=bonzo-web
+          cache-to: type=gha,mode=max,scope=bonzo-web
 
       - name: Build and push MCP image
         if: github.event_name == 'push'
@@ -72,8 +123,13 @@ jobs:
             echo "Deployment started at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
             APP_DIR=/home/ubuntu/bottie
+            WEB_ENV=$APP_DIR/.env.web
             MCP_ENV=$APP_DIR/.env.mcp
 
+            if [ ! -f "$WEB_ENV" ]; then
+              echo "ERROR: Missing web env file: $WEB_ENV"
+              exit 1
+            fi
             if [ ! -f "$MCP_ENV" ]; then
               echo "ERROR: Missing MCP env file: $MCP_ENV"
               exit 1
@@ -82,12 +138,22 @@ jobs:
             echo "Creating Docker network if missing..."
             sudo docker network create bottie-net >/dev/null 2>&1 || true
 
-            echo "Stopping old container..."
-            sudo docker stop bottie-mcp-server || true
-            sudo docker rm bottie-mcp-server || true
+            echo "Stopping old containers..."
+            sudo docker stop bottie-web bottie-mcp-server || true
+            sudo docker rm bottie-web bottie-mcp-server || true
 
-            echo "Pulling latest image..."
+            echo "Pulling latest images..."
+            sudo docker pull ${{ env.WEB_IMAGE }}
             sudo docker pull ${{ env.MCP_IMAGE }}
+
+            echo "Starting web app..."
+            sudo docker run -d \
+              --name bottie-web \
+              --restart unless-stopped \
+              --network bottie-net \
+              -p 3000:3000 \
+              --env-file "$WEB_ENV" \
+              ${{ env.WEB_IMAGE }}
 
             echo "Starting MCP server..."
             sudo docker run -d \
@@ -101,13 +167,21 @@ jobs:
             echo "Verifying deployment..."
             sleep 10
 
+            if ! sudo docker ps --format '{{.Names}}' | grep -q '^bottie-web$'; then
+              echo "ERROR: Web container failed to start"
+              sudo docker logs bottie-web || true
+              exit 1
+            fi
+
             if ! sudo docker ps --format '{{.Names}}' | grep -q '^bottie-mcp-server$'; then
               echo "ERROR: MCP container failed to start"
               sudo docker logs bottie-mcp-server || true
               exit 1
             fi
 
-            echo "OK: MCP container is running"
+            echo "OK: Both containers are running"
+            echo "Web logs:"
+            sudo docker logs --tail 30 bottie-web
             echo "MCP logs:"
             sudo docker logs --tail 30 bottie-mcp-server
             echo "Deployment completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
@@ -120,6 +194,15 @@ jobs:
           username: ${{ env.HOST_USERNAME }}
           key: ${{ env.SSH_PRIVATE_KEY }}
           script: |
+            if sudo docker ps --format '{{.Names}}' | grep -q '^bottie-web$'; then
+              echo "Web container status:"
+              sudo docker inspect bottie-web --format='Status: {{.State.Status}} | Started At: {{.State.StartedAt}}'
+              sudo docker port bottie-web
+            else
+              echo "ERROR: bottie-web is not running"
+              exit 1
+            fi
+
             if sudo docker ps --format '{{.Names}}' | grep -q '^bottie-mcp-server$'; then
               echo "MCP container status:"
               sudo docker inspect bottie-mcp-server --format='Status: {{.State.Status}} | Started At: {{.State.StartedAt}}'
