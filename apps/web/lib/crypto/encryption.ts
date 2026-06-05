@@ -35,10 +35,46 @@ let serverPrivateKey: KeyObject | null = null
 
 /**
  * Normalize PEM key from environment variable.
- * Handles escaped newlines (\n as literal string) and converts to actual newlines.
+ * Handles quoted env values, escaped newlines (\n as literal string), CRLFs,
+ * and base64-encoded PEM values.
  */
 function normalizePem(pem: string): string {
-  return pem.replace(/\\n/g, '\n')
+  let normalized = pem.trim()
+
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1)
+  }
+
+  normalized = normalized
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim()
+
+  if (!normalized.includes('-----BEGIN ')) {
+    try {
+      const decoded = Buffer.from(normalized, 'base64').toString('utf8').trim()
+      if (decoded.includes('-----BEGIN ')) {
+        normalized = decoded
+      }
+    } catch {
+      // Keep the original value so createPublicKey/createPrivateKey reports it.
+    }
+  }
+
+  return normalized.endsWith('\n') ? normalized : `${normalized}\n`
+}
+
+function describeKeyLoadError(keyName: string, error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error)
+  return new Error(
+    `${keyName} is not a valid PEM key. Store it as a quoted PEM with escaped newlines, ` +
+    `or as base64-encoded PEM. Original error: ${message}`
+  )
 }
 
 /**
@@ -53,7 +89,11 @@ export function getServerPublicKey(): KeyObject {
     throw new Error('SERVER_PUBLIC_KEY environment variable is not set')
   }
 
-  serverPublicKey = createPublicKey(normalizePem(publicKeyPem))
+  try {
+    serverPublicKey = createPublicKey(normalizePem(publicKeyPem))
+  } catch (error) {
+    throw describeKeyLoadError('SERVER_PUBLIC_KEY', error)
+  }
   return serverPublicKey
 }
 
@@ -69,7 +109,11 @@ export function getServerPrivateKey(): KeyObject {
     throw new Error('SERVER_PRIVATE_KEY environment variable is not set')
   }
 
-  serverPrivateKey = createPrivateKey(normalizePem(privateKeyPem))
+  try {
+    serverPrivateKey = createPrivateKey(normalizePem(privateKeyPem))
+  } catch (error) {
+    throw describeKeyLoadError('SERVER_PRIVATE_KEY', error)
+  }
   return serverPrivateKey
 }
 

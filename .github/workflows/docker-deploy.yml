@@ -182,6 +182,15 @@ jobs:
               exit 1
             fi
 
+            if ! grep -q '^SERVER_PUBLIC_KEY=.*BEGIN PUBLIC KEY' "$WEB_ENV"; then
+              echo "WARNING: SERVER_PUBLIC_KEY in .env.web does not visibly contain BEGIN PUBLIC KEY."
+              echo "WARNING: If it is not base64-encoded PEM, /api/crypto/public-key will fail."
+            fi
+            if ! grep -q '^SERVER_PRIVATE_KEY=.*BEGIN PRIVATE KEY' "$WEB_ENV" "$MCP_ENV"; then
+              echo "WARNING: SERVER_PRIVATE_KEY does not visibly contain BEGIN PRIVATE KEY in one or both env files."
+              echo "WARNING: If it is not base64-encoded PEM, encrypted session/proxy flows will fail."
+            fi
+
             echo "Creating Docker network if missing..."
             sudo docker network create bottie-net >/dev/null 2>&1 || true
 
