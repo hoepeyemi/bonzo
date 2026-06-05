@@ -11,9 +11,18 @@ import {
 import { getScopeTemplateById } from '@/lib/sessionKeys/scopeTemplates'
 import { serializeScope, type SessionScope } from '@/lib/sessionKeys/types'
 import type { WorkflowDefinition } from '@/lib/db/schema'
+import { randomBytes } from 'crypto'
 
 function logOAuthAuthorize(stage: string, details: Record<string, unknown> = {}) {
   console.log(`[OAuth Authorize] ${stage}`, details)
+}
+
+function getRequestTrace(request: NextRequest) {
+  return {
+    requestId: request.headers.get('x-request-id') || randomBytes(8).toString('hex'),
+    path: request.nextUrl.pathname,
+    method: request.method,
+  }
 }
 
 /**
@@ -32,6 +41,7 @@ function logOAuthAuthorize(stage: string, details: Record<string, unknown> = {})
  * - mcp_slug: (Optional) MCP server slug to scope the authorization
  */
 export async function GET(request: NextRequest) {
+  const trace = getRequestTrace(request)
   const { searchParams } = new URL(request.url)
 
   const clientId = searchParams.get('client_id')
@@ -44,6 +54,9 @@ export async function GET(request: NextRequest) {
   const mcpSlug = searchParams.get('mcp_slug') // Optional MCP server slug
 
   logOAuthAuthorize('request:start', {
+    requestId: trace.requestId,
+    method: trace.method,
+    path: trace.path,
     clientId,
     redirectUri,
     responseType,
@@ -56,34 +69,34 @@ export async function GET(request: NextRequest) {
 
   // Validate required params
   if (!clientId) {
-    logOAuthAuthorize('request:missing-client-id')
+    logOAuthAuthorize('request:missing-client-id', { requestId: trace.requestId })
     return NextResponse.json({ error: 'missing_client_id' }, { status: 400 })
   }
   if (!redirectUri) {
-    logOAuthAuthorize('request:missing-redirect-uri', { clientId })
+    logOAuthAuthorize('request:missing-redirect-uri', { requestId: trace.requestId, clientId })
     return NextResponse.json({ error: 'missing_redirect_uri' }, { status: 400 })
   }
   if (responseType !== 'code') {
-    logOAuthAuthorize('request:unsupported-response-type', { clientId, responseType })
+    logOAuthAuthorize('request:unsupported-response-type', { requestId: trace.requestId, clientId, responseType })
     return NextResponse.json({ error: 'unsupported_response_type' }, { status: 400 })
   }
   if (!codeChallenge) {
-    logOAuthAuthorize('request:missing-code-challenge', { clientId })
+    logOAuthAuthorize('request:missing-code-challenge', { requestId: trace.requestId, clientId })
     return NextResponse.json({ error: 'missing_code_challenge' }, { status: 400 })
   }
   if (codeChallengeMethod !== 'S256') {
-    logOAuthAuthorize('request:unsupported-code-challenge-method', { clientId, codeChallengeMethod })
+    logOAuthAuthorize('request:unsupported-code-challenge-method', { requestId: trace.requestId, clientId, codeChallengeMethod })
     return NextResponse.json({ error: 'unsupported_code_challenge_method' }, { status: 400 })
   }
   if (!scopeParam) {
-    logOAuthAuthorize('request:missing-scope', { clientId })
+    logOAuthAuthorize('request:missing-scope', { requestId: trace.requestId, clientId })
     return NextResponse.json({ error: 'missing_scope' }, { status: 400 })
   }
 
   // Get the client
   const client = await getOAuthClient(clientId)
   if (!client) {
-    logOAuthAuthorize('request:invalid-client', { clientId, mcpSlug: mcpSlug ?? null })
+    logOAuthAuthorize('request:invalid-client', { requestId: trace.requestId, clientId, mcpSlug: mcpSlug ?? null })
     return NextResponse.json({ error: 'invalid_client' }, { status: 400 })
   }
 
@@ -93,6 +106,7 @@ export async function GET(request: NextRequest) {
   // Validate redirect URI
   if (!validateRedirectUri(client, redirectUri)) {
     logOAuthAuthorize('request:invalid-redirect-uri', {
+      requestId: trace.requestId,
       clientId,
       redirectUri,
       registeredRedirectUris: client.redirectUris,
@@ -106,6 +120,7 @@ export async function GET(request: NextRequest) {
 
   if (!scopeValidation.valid) {
     logOAuthAuthorize('request:invalid-scope', {
+      requestId: trace.requestId,
       clientId,
       invalidScopes: scopeValidation.invalidScopes,
       requestedScopes,
@@ -157,6 +172,7 @@ export async function GET(request: NextRequest) {
       })
 
       logOAuthAuthorize('request:loaded-workflow-targets', {
+        requestId: trace.requestId,
         clientId,
         mcpSlug: effectiveSlug,
         workflowCount: serverWorkflows.length,
@@ -187,6 +203,7 @@ export async function GET(request: NextRequest) {
 
   // Return client info for consent page
   logOAuthAuthorize('request:success', {
+    requestId: trace.requestId,
     clientId,
     mcpSlug: effectiveSlug ?? null,
     scopeCount: requestedScopes.length,
@@ -226,6 +243,7 @@ export async function GET(request: NextRequest) {
  * - mcp_slug: (Optional) MCP server slug to scope the authorization
  */
 export const POST = withAuth(async (user, request) => {
+  const trace = getRequestTrace(request as NextRequest)
   const body = await request.json()
 
   const {
@@ -240,36 +258,36 @@ export const POST = withAuth(async (user, request) => {
 
   // Validate required params
   if (!clientId || typeof clientId !== 'string') {
-    logOAuthAuthorize('exchange:missing-client-id')
+    logOAuthAuthorize('exchange:missing-client-id', { requestId: trace.requestId })
     return NextResponse.json({ error: 'missing_client_id' }, { status: 400 })
   }
   if (!redirectUri || typeof redirectUri !== 'string') {
-    logOAuthAuthorize('exchange:missing-redirect-uri', { clientId })
+    logOAuthAuthorize('exchange:missing-redirect-uri', { requestId: trace.requestId, clientId })
     return NextResponse.json({ error: 'missing_redirect_uri' }, { status: 400 })
   }
   if (!codeChallenge || typeof codeChallenge !== 'string') {
-    logOAuthAuthorize('exchange:missing-code-challenge', { clientId })
+    logOAuthAuthorize('exchange:missing-code-challenge', { requestId: trace.requestId, clientId })
     return NextResponse.json({ error: 'missing_code_challenge' }, { status: 400 })
   }
   if (!Array.isArray(approvedScopes) || approvedScopes.length === 0) {
-    logOAuthAuthorize('exchange:no-scopes-approved', { clientId })
+    logOAuthAuthorize('exchange:no-scopes-approved', { requestId: trace.requestId, clientId })
     return NextResponse.json({ error: 'no_scopes_approved' }, { status: 400 })
   }
   if (!sessionId || typeof sessionId !== 'string' || !/^0x[0-9a-f]{64}$/i.test(sessionId)) {
-    logOAuthAuthorize('exchange:invalid-session-id', { clientId, sessionId: sessionId ?? null })
+    logOAuthAuthorize('exchange:invalid-session-id', { requestId: trace.requestId, clientId, sessionId: sessionId ?? null })
     return NextResponse.json({ error: 'invalid_session_id' }, { status: 400 })
   }
 
   // Get the client
   const client = await getOAuthClient(clientId)
   if (!client) {
-    logOAuthAuthorize('exchange:invalid-client', { clientId, mcpSlug: mcpSlug ?? null })
+    logOAuthAuthorize('exchange:invalid-client', { requestId: trace.requestId, clientId, mcpSlug: mcpSlug ?? null })
     return NextResponse.json({ error: 'invalid_client' }, { status: 400 })
   }
 
   // Validate redirect URI
   if (!validateRedirectUri(client, redirectUri)) {
-    logOAuthAuthorize('exchange:invalid-redirect-uri', { clientId, redirectUri })
+    logOAuthAuthorize('exchange:invalid-redirect-uri', { requestId: trace.requestId, clientId, redirectUri })
     return NextResponse.json({ error: 'invalid_redirect_uri' }, { status: 400 })
   }
 
@@ -277,6 +295,7 @@ export const POST = withAuth(async (user, request) => {
   const scopeValidation = validateScopes(client, approvedScopes)
   if (!scopeValidation.valid) {
     logOAuthAuthorize('exchange:invalid-scope', {
+      requestId: trace.requestId,
       clientId,
       invalidScopes: scopeValidation.invalidScopes,
       approvedScopes,
@@ -297,7 +316,7 @@ export const POST = withAuth(async (user, request) => {
   })
 
   if (!session) {
-    logOAuthAuthorize('exchange:session-not-found', { clientId, sessionId })
+    logOAuthAuthorize('exchange:session-not-found', { requestId: trace.requestId, clientId, sessionId })
     return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
   }
 
@@ -350,6 +369,7 @@ export const POST = withAuth(async (user, request) => {
     mcpSlug: mcpSlug || null,
   })
   logOAuthAuthorize('exchange:auth-code-created', {
+    requestId: trace.requestId,
     clientId,
     userId: user.id,
     sessionId: session.sessionId,

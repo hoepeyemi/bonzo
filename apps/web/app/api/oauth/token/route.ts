@@ -10,9 +10,18 @@ import {
   hashToken,
 } from '@/lib/auth/oauth'
 import * as bcrypt from 'bcrypt'
+import { randomBytes } from 'crypto'
 
 function logOAuthToken(stage: string, details: Record<string, unknown> = {}) {
   console.log(`[OAuth Token] ${stage}`, details)
+}
+
+function getRequestTrace(request: NextRequest) {
+  return {
+    requestId: request.headers.get('x-request-id') || randomBytes(8).toString('hex'),
+    path: request.nextUrl.pathname,
+    method: request.method,
+  }
 }
 
 function corsHeaders() {
@@ -37,6 +46,7 @@ function corsHeaders() {
  * - code_verifier: PKCE code verifier
  */
 export async function POST(request: NextRequest) {
+  const trace = getRequestTrace(request)
   // Parse body (support both form and JSON)
   let body: Record<string, string>
   const contentType = request.headers.get('content-type') || ''
@@ -58,6 +68,9 @@ export async function POST(request: NextRequest) {
   } = body
 
   logOAuthToken('request:start', {
+    requestId: trace.requestId,
+    method: trace.method,
+    path: trace.path,
     grantType,
     clientId,
     redirectUri,
@@ -68,7 +81,7 @@ export async function POST(request: NextRequest) {
 
   // Validate grant type
   if (grantType !== 'authorization_code') {
-    logOAuthToken('request:unsupported-grant-type', { grantType })
+    logOAuthToken('request:unsupported-grant-type', { requestId: trace.requestId, grantType })
     return NextResponse.json({
       error: 'unsupported_grant_type',
       error_description: 'Only authorization_code grant type is supported',
@@ -77,28 +90,28 @@ export async function POST(request: NextRequest) {
 
   // Validate required params
   if (!code) {
-    logOAuthToken('request:missing-code', { clientId: clientId ?? null })
+    logOAuthToken('request:missing-code', { requestId: trace.requestId, clientId: clientId ?? null })
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing authorization code',
     }, { status: 400, headers: corsHeaders() })
   }
   if (!clientId) {
-    logOAuthToken('request:missing-client-id')
+    logOAuthToken('request:missing-client-id', { requestId: trace.requestId })
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing client_id',
     }, { status: 400, headers: corsHeaders() })
   }
   if (!clientSecret) {
-    logOAuthToken('request:missing-client-secret', { clientId: clientId ?? null })
+    logOAuthToken('request:missing-client-secret', { requestId: trace.requestId, clientId: clientId ?? null })
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing client_secret',
     }, { status: 400, headers: corsHeaders() })
   }
   if (!codeVerifier) {
-    logOAuthToken('request:missing-code-verifier', { clientId: clientId ?? null })
+    logOAuthToken('request:missing-code-verifier', { requestId: trace.requestId, clientId: clientId ?? null })
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing code_verifier (PKCE required)',
@@ -108,7 +121,7 @@ export async function POST(request: NextRequest) {
   // Get and validate client
   const client = await getOAuthClient(clientId)
   if (!client) {
-    logOAuthToken('request:invalid-client', { clientId })
+    logOAuthToken('request:invalid-client', { requestId: trace.requestId, clientId })
     return NextResponse.json({
       error: 'invalid_client',
       error_description: 'Unknown client',
@@ -118,7 +131,7 @@ export async function POST(request: NextRequest) {
   // Verify client secret
   const secretValid = await bcrypt.compare(clientSecret, client.secretHash)
   if (!secretValid) {
-    logOAuthToken('request:invalid-client-secret', { clientId })
+    logOAuthToken('request:invalid-client-secret', { requestId: trace.requestId, clientId })
     return NextResponse.json({
       error: 'invalid_client',
       error_description: 'Invalid client credentials',
@@ -128,7 +141,7 @@ export async function POST(request: NextRequest) {
   // Get and validate authorization code
   const authCode = await getAndValidateAuthCode(code, clientId)
   if (!authCode) {
-    logOAuthToken('request:invalid-auth-code', { clientId })
+    logOAuthToken('request:invalid-auth-code', { requestId: trace.requestId, clientId })
     return NextResponse.json({
       error: 'invalid_grant',
       error_description: 'Invalid or expired authorization code',
@@ -138,6 +151,7 @@ export async function POST(request: NextRequest) {
   // Verify redirect URI matches
   if (redirectUri && authCode.redirectUri !== redirectUri) {
     logOAuthToken('request:redirect-uri-mismatch', {
+      requestId: trace.requestId,
       clientId,
       redirectUri,
       expectedRedirectUri: authCode.redirectUri,
@@ -150,7 +164,7 @@ export async function POST(request: NextRequest) {
 
   // Verify PKCE code challenge
   if (!verifyCodeChallenge(codeVerifier, authCode.codeChallenge)) {
-    logOAuthToken('request:invalid-code-verifier', { clientId })
+    logOAuthToken('request:invalid-code-verifier', { requestId: trace.requestId, clientId })
     return NextResponse.json({
       error: 'invalid_grant',
       error_description: 'Invalid code_verifier',
@@ -160,7 +174,7 @@ export async function POST(request: NextRequest) {
   // Get the session linked to this authorization
   const sessionId = authCode.sessionConfig.sessionId
   if (!sessionId) {
-    logOAuthToken('request:no-session-linked', { clientId })
+    logOAuthToken('request:no-session-linked', { requestId: trace.requestId, clientId })
     return NextResponse.json({
       error: 'invalid_grant',
       error_description: 'No session linked to this authorization',
@@ -177,6 +191,7 @@ export async function POST(request: NextRequest) {
 
   if (!session) {
     logOAuthToken('request:linked-session-missing', {
+      requestId: trace.requestId,
       clientId,
       sessionId,
     })
@@ -217,6 +232,7 @@ export async function POST(request: NextRequest) {
     expiresAt: expiresAt.toISOString(),
   })
   logOAuthToken('request:success', {
+    requestId: trace.requestId,
     clientId,
     userId: authCode.userId,
     sessionId: session.sessionId,

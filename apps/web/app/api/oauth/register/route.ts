@@ -8,6 +8,14 @@ function logOAuthRegistration(stage: string, details: Record<string, unknown> = 
   console.log(`[OAuth Register] ${stage}`, details)
 }
 
+function getRequestTrace(request: NextRequest) {
+  return {
+    requestId: request.headers.get('x-request-id') || randomBytes(8).toString('hex'),
+    path: request.nextUrl.pathname,
+    method: request.method,
+  }
+}
+
 /**
  * POST /api/oauth/register
  *
@@ -28,6 +36,7 @@ function logOAuthRegistration(stage: string, details: Record<string, unknown> = 
  */
 export async function POST(request: NextRequest) {
   try {
+    const trace = getRequestTrace(request)
     const body = await request.json()
     const { searchParams } = new URL(request.url)
 
@@ -49,6 +58,9 @@ export async function POST(request: NextRequest) {
     }
 
     logOAuthRegistration('request:start', {
+      requestId: trace.requestId,
+      method: trace.method,
+      path: trace.path,
       mcpSlug: mcpSlug ?? null,
       redirectUriCount: Array.isArray(body.redirect_uris) ? body.redirect_uris.length : 0,
       hasClientName: Boolean(body.client_name),
@@ -68,7 +80,10 @@ export async function POST(request: NextRequest) {
 
     // Validate redirect_uris
     if (!redirectUris || !Array.isArray(redirectUris) || redirectUris.length === 0) {
-      logOAuthRegistration('request:invalid-redirect-uris', { mcpSlug: mcpSlug ?? null })
+      logOAuthRegistration('request:invalid-redirect-uris', {
+        requestId: trace.requestId,
+        mcpSlug: mcpSlug ?? null,
+      })
       return NextResponse.json({
         error: 'invalid_redirect_uri',
         error_description: 'redirect_uris is required and must be a non-empty array',
@@ -136,6 +151,7 @@ export async function POST(request: NextRequest) {
         mcpSlug: mcpSlug || existingClient.mcpSlug,
       })
       logOAuthRegistration('client:refreshed', {
+        requestId: trace.requestId,
         clientId,
         mcpSlug: mcpSlug || existingClient.mcpSlug,
         redirectUris,
@@ -164,6 +180,7 @@ export async function POST(request: NextRequest) {
         mcpSlug,
       })
       logOAuthRegistration('client:registered', {
+        requestId: trace.requestId,
         clientId,
         mcpSlug: mcpSlug ?? null,
         redirectUris,
@@ -193,6 +210,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[POST /api/oauth/register] Error:', error)
     logOAuthRegistration('request:error', {
+      requestId: trace.requestId,
       error: error instanceof Error ? error.message : String(error),
     })
     return NextResponse.json({
