@@ -62,7 +62,7 @@ function buildWorkflowTargetsScope(targets: WorkflowTarget[]): ExecuteScope | nu
  * Fetch OAuth client info from the authorize endpoint
  */
 async function fetchClientInfo(params: OAuthParams): Promise<OAuthClientInfo> {
-  const { clientId, redirectUri, responseType, codeChallenge, codeChallengeMethod, scopeParam, state, mcpSlug } = params
+  const { clientId, redirectUri, responseType, codeChallenge, codeChallengeMethod, scopeParam, state, resource, mcpSlug } = params
 
   if (!clientId || !redirectUri || !responseType || !codeChallenge || !codeChallengeMethod || !scopeParam) {
     throw new Error('Missing required OAuth parameters')
@@ -77,6 +77,7 @@ async function fetchClientInfo(params: OAuthParams): Promise<OAuthClientInfo> {
     scope: scopeParam,
   })
   if (state) searchParams.set('state', state)
+  if (resource) searchParams.set('resource', resource)
   if (mcpSlug) searchParams.set('mcp_slug', mcpSlug)
 
   const response = await fetch(`/api/oauth/authorize?${searchParams}`)
@@ -170,6 +171,7 @@ export function useAuthorization() {
       codeChallengeMethod: searchParams.get('code_challenge_method'),
       scopeParam: searchParams.get('scope'),
       state: searchParams.get('state'),
+      resource: searchParams.get('resource'),
       mcpSlug: searchParams.get('mcp_slug'),
     }),
     [searchParams]

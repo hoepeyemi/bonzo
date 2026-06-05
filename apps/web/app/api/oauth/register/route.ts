@@ -16,6 +16,21 @@ function getRequestTrace(request: NextRequest) {
   }
 }
 
+function extractMcpSlugFromResource(resource: unknown): string | null {
+  if (typeof resource !== 'string') {
+    return null
+  }
+
+  try {
+    const resourceUrl = new URL(resource)
+    const match = resourceUrl.pathname.match(/^\/mcp\/([^\/]+)/)
+    return match ? decodeURIComponent(match[1]) : null
+  } catch {
+    const match = resource.match(/\/mcp\/([^\/\?]+)/)
+    return match ? decodeURIComponent(match[1]) : null
+  }
+}
+
 /**
  * POST /api/oauth/register
  *
@@ -42,6 +57,10 @@ export async function POST(request: NextRequest) {
 
     // Get mcp_slug from query param (set by virtual auth server metadata)
     let mcpSlug = searchParams.get('mcp_slug')
+
+    if (!mcpSlug) {
+      mcpSlug = extractMcpSlugFromResource(body.resource)
+    }
 
     // If no slug in query param, try to extract from Referer header
     // MCP SDK might include the MCP server URL in the Referer

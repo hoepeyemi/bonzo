@@ -270,16 +270,14 @@ export function createApp(config: { nextAppUrl: string; chainId: number; mcpPubl
     logConnection('resource-discovery:mcp-slug', {
       slug,
       resource: `${mcpServerUrl}/mcp/${slug}`,
-      authorizationServers: [`${mcpServerUrl}/mcp/${slug}`, config.nextAppUrl],
+      authorizationServers: [config.nextAppUrl],
     })
     const metadata = {
       resource: `${mcpServerUrl}/mcp/${slug}`,
-      // Point to MCP server's own slug-aware OAuth discovery endpoint
-      // Clients will fetch {auth_server}/.well-known/oauth-authorization-server
-      // which returns metadata with mcp_slug in authorization_endpoint and registration_endpoint
-      // Include the web app issuer as a fallback for clients that do not support
-      // path-based authorization server identifiers.
-      authorization_servers: [`${mcpServerUrl}/mcp/${slug}`, config.nextAppUrl],
+      // Use the web app as the OAuth issuer. Some connector clients do not
+      // handle path-based authorization server identifiers consistently.
+      // The web OAuth routes recover the MCP slug from the resource URL.
+      authorization_servers: [config.nextAppUrl],
       scopes_supported: ['x402:payments', 'mcp:tools', 'workflow:token-approvals'],
       bearer_methods_supported: ['header'],
     }

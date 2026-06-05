@@ -56,6 +56,7 @@ export interface OAuthParams {
   codeChallengeMethod: string | null
   scopeParam: string | null
   state: string | null
+  resource: string | null
   mcpSlug: string | null
 }
 

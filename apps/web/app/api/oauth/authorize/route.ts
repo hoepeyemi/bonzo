@@ -25,6 +25,21 @@ function getRequestTrace(request: NextRequest) {
   }
 }
 
+function extractMcpSlugFromResource(resource: string | null): string | null {
+  if (!resource) {
+    return null
+  }
+
+  try {
+    const resourceUrl = new URL(resource)
+    const match = resourceUrl.pathname.match(/^\/mcp\/([^\/]+)/)
+    return match ? decodeURIComponent(match[1]) : null
+  } catch {
+    const match = resource.match(/\/mcp\/([^\/\?]+)/)
+    return match ? decodeURIComponent(match[1]) : null
+  }
+}
+
 /**
  * GET /api/oauth/authorize
  *
@@ -51,7 +66,8 @@ export async function GET(request: NextRequest) {
   const codeChallengeMethod = searchParams.get('code_challenge_method')
   const scopeParam = searchParams.get('scope')
   const state = searchParams.get('state')
-  const mcpSlug = searchParams.get('mcp_slug') // Optional MCP server slug
+  const resource = searchParams.get('resource')
+  const mcpSlug = searchParams.get('mcp_slug') || extractMcpSlugFromResource(resource) // Optional MCP server slug
 
   logOAuthAuthorize('request:start', {
     requestId: trace.requestId,
@@ -64,6 +80,7 @@ export async function GET(request: NextRequest) {
     codeChallengeMethod,
     scope: scopeParam,
     statePresent: Boolean(state),
+    resource,
     mcpSlug: mcpSlug ?? null,
   })
 
