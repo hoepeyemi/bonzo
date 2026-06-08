@@ -24,6 +24,7 @@ The MCP server shares environment variables with the web app. Required variables
 | `CHAIN_ID` | Somnia Shannon testnet chain ID — `50312` |
 | `SERVER_PRIVATE_KEY` | RSA private key for decrypting session keys |
 | `MCP_CLIENT_SECRET` | OAuth client secret for the MCP platform client |
+| `USDCE_ADDRESS` | Optional x402 payment token override. Set this to the same value as the web app's `NEXT_PUBLIC_USDCE_ADDRESS` when using a non-default Somnia EIP-3009 token |
 
 ## Running
 

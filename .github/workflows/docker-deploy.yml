@@ -154,8 +154,10 @@ jobs:
 
             WEB_PUBLIC_MCP_URL=$(grep -E '^NEXT_PUBLIC_MCP_URL=' "$WEB_ENV" | tail -n 1 | cut -d= -f2- || true)
             WEB_PUBLIC_APP_URL=$(grep -E '^NEXT_PUBLIC_APP_URL=' "$WEB_ENV" | tail -n 1 | cut -d= -f2- || true)
+            WEB_USDCE_ADDRESS=$(grep -E '^NEXT_PUBLIC_USDCE_ADDRESS=' "$WEB_ENV" | tail -n 1 | cut -d= -f2- || true)
             MCP_PUBLIC_URL=$(grep -E '^MCP_PUBLIC_URL=' "$MCP_ENV" | tail -n 1 | cut -d= -f2- || true)
             MCP_NEXT_APP_URL=$(grep -E '^NEXT_APP_URL=' "$MCP_ENV" | tail -n 1 | cut -d= -f2- || true)
+            MCP_USDCE_ADDRESS=$(grep -E '^(USDCE_ADDRESS|NEXT_PUBLIC_USDCE_ADDRESS)=' "$MCP_ENV" | tail -n 1 | cut -d= -f2- || true)
 
             CANONICAL_PUBLIC_URL="${WEB_PUBLIC_APP_URL:-$WEB_PUBLIC_MCP_URL}"
             if [ -z "$CANONICAL_PUBLIC_URL" ]; then
@@ -189,6 +191,18 @@ jobs:
             if ! grep -q '^SERVER_PRIVATE_KEY=.*BEGIN PRIVATE KEY' "$WEB_ENV" "$MCP_ENV"; then
               echo "WARNING: SERVER_PRIVATE_KEY does not visibly contain BEGIN PRIVATE KEY in one or both env files."
               echo "WARNING: If it is not base64-encoded PEM, encrypted session/proxy flows will fail."
+            fi
+            WEB_USDCE_ADDRESS_LC=$(printf '%s' "$WEB_USDCE_ADDRESS" | tr '[:upper:]' '[:lower:]')
+            MCP_USDCE_ADDRESS_LC=$(printf '%s' "$MCP_USDCE_ADDRESS" | tr '[:upper:]' '[:lower:]')
+            if [ -n "$WEB_USDCE_ADDRESS" ] && [ -n "$MCP_USDCE_ADDRESS" ] && [ "$WEB_USDCE_ADDRESS_LC" != "$MCP_USDCE_ADDRESS_LC" ]; then
+              echo "ERROR: MCP payment token address must match the web app payment token address."
+              echo "  .env.web NEXT_PUBLIC_USDCE_ADDRESS=$WEB_USDCE_ADDRESS"
+              echo "  .env.mcp USDCE_ADDRESS/NEXT_PUBLIC_USDCE_ADDRESS=$MCP_USDCE_ADDRESS"
+              exit 1
+            fi
+            if [ -n "$WEB_USDCE_ADDRESS" ] && [ -z "$MCP_USDCE_ADDRESS" ]; then
+              echo "WARNING: .env.web sets NEXT_PUBLIC_USDCE_ADDRESS but .env.mcp does not."
+              echo "WARNING: MCP will fall back to the token approved in the session, but setting USDCE_ADDRESS in .env.mcp is recommended."
             fi
 
             echo "Creating Docker network if missing..."

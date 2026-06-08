@@ -21,6 +21,7 @@ import {
 
 // Constants
 const AES_ALGORITHM = 'aes-256-gcm'
+const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/
 
 /**
  * Hybrid encrypted data structure from the web app
@@ -89,6 +90,34 @@ function decryptHybrid(encrypted: HybridEncryptedData): string {
 }
 
 /**
+ * Resolve the EIP-3009 payment token used for this session.
+ *
+ * The web app can override the package default with NEXT_PUBLIC_USDCE_ADDRESS.
+ * The MCP server runs separately, so it must not blindly use @x402/payment's
+ * baked-in default if the session was granted for a different deployed token.
+ */
+function getPaymentTokenAddress(session: SessionKey, chainId: number): Address {
+  const envAddress = process.env.USDCE_ADDRESS || process.env.NEXT_PUBLIC_USDCE_ADDRESS
+  if (envAddress && ADDRESS_RE.test(envAddress)) {
+    return envAddress as Address
+  }
+
+  const approvedContracts = session.approvedContracts ?? []
+  if (approvedContracts.length === 1 && ADDRESS_RE.test(approvedContracts[0].address)) {
+    return approvedContracts[0].address as Address
+  }
+
+  const sttContract = approvedContracts.find((contract) =>
+    contract.name?.toLowerCase() === 'stt' && ADDRESS_RE.test(contract.address)
+  )
+  if (sttContract) {
+    return sttContract.address as Address
+  }
+
+  return getUsdceAddress(chainId)
+}
+
+/**
  * Decrypt a session key's private key
  */
 export function decryptSessionKey(encryptedPrivateKey: HybridEncryptedData): Hex {
@@ -129,7 +158,7 @@ export async function signPayment(params: {
 
   console.log('[SignPayment] Session account address:', sessionAccount.address)
 
-  const usdceAddress = getUsdceAddress(chainId)
+  const usdceAddress = getPaymentTokenAddress(session, chainId)
   const nonce = generateNonce()
   const validAfter = 0n
   const validBefore = BigInt(Math.floor(Date.now() / 1000) + 300) // 5 minutes validity
@@ -170,6 +199,7 @@ export async function signPayment(params: {
   })
 
   console.log('[SignPayment] Full signature length:', (fullSignature.length - 2) / 2, 'bytes')
+  console.log('[SignPayment] Payment token address:', usdceAddress)
 
   // Build and encode the payment header
   const paymentHeader = buildPaymentHeader({
