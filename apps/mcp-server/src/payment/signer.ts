@@ -36,46 +36,10 @@ interface HybridEncryptedData {
 let serverPrivateKey: KeyObject | null = null
 
 /**
- * Normalize PEM key from environment variable.
- * Handles quoted env values, escaped newlines, CRLFs, and base64-encoded PEM.
+ * Normalize PEM key from environment variable
  */
 function normalizePem(pem: string): string {
-  let normalized = pem.trim()
-
-  if (
-    (normalized.startsWith('"') && normalized.endsWith('"')) ||
-    (normalized.startsWith("'") && normalized.endsWith("'"))
-  ) {
-    normalized = normalized.slice(1, -1)
-  }
-
-  normalized = normalized
-    .replace(/\\r\\n/g, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .trim()
-
-  if (!normalized.includes('-----BEGIN ')) {
-    try {
-      const decoded = Buffer.from(normalized, 'base64').toString('utf8').trim()
-      if (decoded.includes('-----BEGIN ')) {
-        normalized = decoded
-      }
-    } catch {
-      // Keep original value so createPrivateKey reports it.
-    }
-  }
-
-  return normalized.endsWith('\n') ? normalized : `${normalized}\n`
-}
-
-function describePrivateKeyLoadError(error: unknown): Error {
-  const message = error instanceof Error ? error.message : String(error)
-  return new Error(
-    'SERVER_PRIVATE_KEY is not a valid PEM private key. Store it as a quoted PEM with escaped newlines, ' +
-    `or as base64-encoded PEM. Original error: ${message}`
-  )
+  return pem.replace(/\\n/g, '\n')
 }
 
 /**
@@ -89,11 +53,7 @@ function getServerPrivateKey(): KeyObject {
     throw new Error('SERVER_PRIVATE_KEY environment variable is not set')
   }
 
-  try {
-    serverPrivateKey = createPrivateKey(normalizePem(privateKeyPem))
-  } catch (error) {
-    throw describePrivateKeyLoadError(error)
-  }
+  serverPrivateKey = createPrivateKey(normalizePem(privateKeyPem))
   return serverPrivateKey
 }
 
