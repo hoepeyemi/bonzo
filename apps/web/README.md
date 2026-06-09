@@ -99,3 +99,45 @@ features/      # Feature modules (marketplace, workflows, auth, etc.)
 lib/           # Core utilities (db, redis, contracts, x402)
 components/    # Shared React components
 ```
+
+---
+
+## Production Notes
+
+The production Docker deployment uses the web app as the public MCP/OAuth entrypoint and the MCP container as the internal tool execution server.
+
+Use a single public origin for the app and connector:
+
+```dotenv
+NEXT_PUBLIC_APP_URL=https://your-web-origin
+NEXT_PUBLIC_MCP_URL=https://your-web-origin
+MCP_PUBLIC_URL=https://your-web-origin
+MCP_INTERNAL_URL=http://bottie-mcp-server:3001
+```
+
+The public connector URL shown to Claude should be:
+
+```text
+https://your-web-origin/mcp/<server-slug>
+```
+
+The web app proxies `/mcp/*` and `/.well-known/*` to the MCP server. These requests are MCP/OAuth transport, not general web browsing by the model.
+
+Keep payment env aligned with the MCP server:
+
+```dotenv
+NEXT_PUBLIC_CHAIN_ID=50312
+NEXT_PUBLIC_USDCE_ADDRESS=0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+FACILITATOR_RELAYER_KEY=0x...
+```
+
+Set `FACILITATOR_RELAYER_KEY` in the web container as well as the MCP container when API proxy settlement runs through the web backend. Verify both containers after deployment:
+
+```bash
+sudo docker exec bottie-web printenv FACILITATOR_RELAYER_KEY
+sudo docker exec bottie-mcp-server printenv FACILITATOR_RELAYER_KEY
+```
+
+RSA PEM keys in Docker env files should be one-line values with escaped newlines (`\n`). Avoid spaces around variable names.
+
+Dashboard API request counts are scoped to APIs owned by the connected wallet. MCP tool calls can appear in MCP logs without appearing in the API proxy "Recent Requests" list. If the connected wallet shows `Total APIs: 0`, Recent Requests will be empty for that account.

@@ -200,3 +200,18 @@ You can also export `HACKATHON_KEY` in the shell instead of using `.env`.
 - **ERC-4337**: Account abstraction compatibility via `validateUserOp`
 - **ERC-1271**: Smart contract signature validation for off-chain signing
 - **ERC-7201**: Namespaced storage to avoid collisions
+
+---
+
+## Operational Notes
+
+If the web app reports an incompatible EIP-7702 smart account, the connected wallet is delegated to a different implementation and cannot use the current Bonzo session/payment validation path. Use a wallet delegated to the current `AgentDelegator` implementation or re-enable EIP-7702 against the current implementation before testing MCP/x402 payment flows.
+
+The app and MCP server must use the same EIP-3009 payment token:
+
+```dotenv
+NEXT_PUBLIC_USDCE_ADDRESS=0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+USDCE_ADDRESS=0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+```
+
+If the session grant approves one token and the MCP signer creates an x402 payment for another token, `isValidSignature` returns `0xffffffff`.

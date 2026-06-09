@@ -106,3 +106,49 @@ src/
     ├── resolver.ts      # JSONPath expression resolution
     └── steps/           # Step type handlers (http, onchain)
 ```
+
+---
+
+## Production Notes
+
+Hosted MCP clients should connect through the public web origin:
+
+```text
+https://your-web-origin/mcp/<server-slug>
+```
+
+In Docker, the web app proxies `/mcp/*` and OAuth discovery routes to this MCP server over the Docker network. Configure the MCP server with the public web origin, not the internal container URL:
+
+```dotenv
+NEXT_APP_URL=https://your-web-origin
+MCP_PUBLIC_URL=https://your-web-origin
+```
+
+The x402 payment token must match the token used by the web app when it grants payment sessions:
+
+```dotenv
+CHAIN_ID=50312
+USDCE_ADDRESS=0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+NEXT_PUBLIC_USDCE_ADDRESS=0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+```
+
+When payment signing is using the correct token, logs include:
+
+```text
+[SignPayment] Payment token address: 0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+```
+
+Settlement requires a relayer key in the running container:
+
+```dotenv
+FACILITATOR_RELAYER_KEY=0x...
+```
+
+Verify the runtime env, not only the host file:
+
+```bash
+sudo docker exec bottie-mcp-server printenv FACILITATOR_RELAYER_KEY
+sudo docker exec bottie-mcp-server printenv USDCE_ADDRESS
+```
+
+If Claude offers to use web search after invoking a connector, it usually means the MCP tool ran and then failed during x402 settlement or upstream execution. Check `bottie-mcp-server` logs for the backend error.

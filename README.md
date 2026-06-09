@@ -255,3 +255,47 @@ MIT
 - [Smart Account & Session Keys](https://github.com/nschwermann/agent_fabric/tree/main/hardhat) — ERC-7702 delegation contracts with scoped permissions
 - [x402 Proxies & Workflows](https://github.com/nschwermann/agent_fabric/tree/main/apps/web) — Next.js app for API proxies, workflows, and marketplace
 - [MCP Server](https://github.com/nschwermann/agent_fabric/tree/main/apps/mcp-server) — Express server exposing tools and workflows via MCP protocol
+
+---
+
+## Production Operations
+
+The hosted deployment runs two Docker containers:
+
+- `bottie-web` - Next.js app, dashboard, OAuth issuer, API proxy routes, and public MCP proxy
+- `bottie-mcp-server` - MCP protocol server, tool/workflow execution, and x402 payment signing
+
+For Claude and other hosted MCP clients, use one public web origin for OAuth discovery and MCP traffic:
+
+```text
+https://your-web-origin/mcp/<server-slug>
+```
+
+The web app proxies `/mcp/*` and `/.well-known/*` to the MCP container over the Docker network. This keeps connector registration and MCP connection attempts visible in both container logs.
+
+Keep the public origin and x402 token aligned across `/home/ubuntu/bottie/.env.web` and `/home/ubuntu/bottie/.env.mcp`:
+
+```dotenv
+# .env.web
+NEXT_PUBLIC_APP_URL=https://your-web-origin
+NEXT_PUBLIC_MCP_URL=https://your-web-origin
+MCP_PUBLIC_URL=https://your-web-origin
+NEXT_PUBLIC_CHAIN_ID=50312
+NEXT_PUBLIC_USDCE_ADDRESS=0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+FACILITATOR_RELAYER_KEY=0x...
+
+# .env.mcp
+NEXT_APP_URL=https://your-web-origin
+MCP_PUBLIC_URL=https://your-web-origin
+CHAIN_ID=50312
+USDCE_ADDRESS=0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+NEXT_PUBLIC_USDCE_ADDRESS=0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+FACILITATOR_RELAYER_KEY=0x...
+```
+
+If the web app grants a session for one token and the MCP server signs payment headers for another token, the smart account rejects the signature and x402 settlement fails. Expected MCP logs include:
+
+```text
+[SignPayment] Payment token address: 0xb0f86e408ea86fdab40c67addf5ac9faed09780d
+[Facilitator] Settling payment
+```
