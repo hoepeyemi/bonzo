@@ -246,15 +246,14 @@ MIT
 
 ## Links
 
-- Website: https://bonzo.tools
-- Demo: https://www.youtube.com/watch?v=xfvH6TqvJd8
-- Hackathon Submission: https://dorahacks.io/buidl/38376
+- Website: https://d31m3u7fhan4mx.cloudfront.net
+- Demo: https://www.youtube.com/watch?v=1_Bt1sUgv_o
 
 ### Source Code
 
-- [Smart Account & Session Keys](https://github.com/nschwermann/agent_fabric/tree/main/hardhat) — ERC-7702 delegation contracts with scoped permissions
-- [x402 Proxies & Workflows](https://github.com/nschwermann/agent_fabric/tree/main/apps/web) — Next.js app for API proxies, workflows, and marketplace
-- [MCP Server](https://github.com/nschwermann/agent_fabric/tree/main/apps/mcp-server) — Express server exposing tools and workflows via MCP protocol
+- [Smart Account & Session Keys](https://github.com/hoepeyemi/bonzo/tree/main/hardhat) — ERC-7702 delegation contracts with scoped permissions
+- [x402 Proxies & Workflows](https://github.com/hoepeyemi/bonzo/tree/main/apps/web) — Next.js app for API proxies, workflows, and marketplace
+- [MCP Server](https://github.com/hoepeyemi/bonzo/tree/main/apps/mcp-server) — Express server exposing tools and workflows via MCP protocol
 
 ---
 
